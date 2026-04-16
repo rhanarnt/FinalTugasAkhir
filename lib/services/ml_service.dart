@@ -3,8 +3,9 @@ import 'dart:convert';
 
 class MLService {
   // API URL - Change based on environment
-  static const String baseUrl = 'http://127.0.0.1:5000';
-  // For remote access: 'http://192.168.1.75:5000'
+  // Untuk emulator Android: 10.0.2.2
+  // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
+  static const String baseUrl = 'http://192.168.1.13:5000';
 
   static const int timeoutSeconds = 30;
 
@@ -159,7 +160,7 @@ class MLService {
       } else {
         return {
           'status': 'error',
-          'message': 'Server error: ${response.statusCode}'
+          'message': 'Server error: ${response.statusCode}',
         };
       }
     } catch (e) {
@@ -315,7 +316,8 @@ class MLService {
         'prediction_date': predictionDate,
         'predicted_quantity': predictedQuantity,
         if (rawValue != null) 'raw_value': rawValue,
-        if (estimatedTotalPrice != null) 'estimated_total_price': estimatedTotalPrice,
+        if (estimatedTotalPrice != null)
+          'estimated_total_price': estimatedTotalPrice,
         if (accuracyR2 != null) 'accuracy_r2': accuracyR2,
         if (errorMae != null) 'error_mae': errorMae,
       };
@@ -336,6 +338,50 @@ class MLService {
     } catch (e) {
       print('Save prediction error: $e');
       return false;
+    }
+  }
+
+  // ========================================================================
+  // RECIPES ENDPOINTS
+  // ========================================================================
+
+  /// Get all recipes with ingredients
+  static Future<List<Map<String, dynamic>>> getRecipes() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/recipes'))
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'success') {
+          return List<Map<String, dynamic>>.from(data['recipes']);
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Get recipes error: $e');
+      return [];
+    }
+  }
+
+  /// Get specific recipe by ID with ingredients
+  static Future<Map<String, dynamic>?> getRecipe(int recipeId) async {
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/recipes/$recipeId'))
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'success') {
+          return data['recipe'];
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Get recipe error: $e');
+      return null;
     }
   }
 }

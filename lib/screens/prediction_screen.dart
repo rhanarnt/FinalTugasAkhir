@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:finalproject/theme/colors.dart';
 import 'package:finalproject/theme/text_styles.dart';
+import 'package:finalproject/services/ml_service.dart';
 
 class PredictionScreen extends StatefulWidget {
   const PredictionScreen({Key? key}) : super(key: key);
@@ -13,49 +14,11 @@ class _PredictionScreenState extends State<PredictionScreen> {
   String? _selectedRecipe;
   int _productionQuantity = 0;
   bool _isCalculated = false;
+  bool _isLoading = true;
 
-  // Produk yang bisa dibuat
-  final List<String> recipes = [
-    'Donat',
-    'Roti Putih',
-    'Kue Brownies',
-    'Kue Tart',
-  ];
-
-  // Resep untuk setiap produk (ingredient: gram/butir per unit)
-  final Map<String, Map<String, int>> recipeDetails = {
-    'Donat': {
-      'Tepung Terigu 1kg': 500,
-      'Telur 1kg': 2,
-      'Gula Pasir 1kg': 100,
-      'Mentega 500gr': 50,
-      'Baking Powder': 5,
-    },
-    'Roti Putih': {
-      'Tepung Terigu 1kg': 800,
-      'Telur 1kg': 3,
-      'Gula Pasir 1kg': 80,
-      'Mentega 500gr': 80,
-      'Susu Bubuk': 50,
-      'Baking Powder': 8,
-    },
-    'Kue Brownies': {
-      'Tepung Terigu 1kg': 300,
-      'Cokelat Bubuk 250gr': 100,
-      'Telur 1kg': 4,
-      'Gula Pasir 1kg': 200,
-      'Mentega 500gr': 150,
-      'Baking Powder': 5,
-    },
-    'Kue Tart': {
-      'Tepung Terigu 1kg': 400,
-      'Telur 1kg': 5,
-      'Gula Pasir 1kg': 150,
-      'Mentega 500gr': 200,
-      'Keju Parut 250gr': 100,
-      'Susu Bubuk': 80,
-    },
-  };
+  // Data dari API
+  List<Map<String, dynamic>> recipes = [];
+  Map<String, Map<String, dynamic>> recipeIngredients = {};
 
   // Stok saat ini (sama dengan di product list)
   final Map<String, int> currentStock = {
@@ -69,25 +32,58 @@ class _PredictionScreenState extends State<PredictionScreen> {
     'Baking Powder': 60000, // gram
   };
 
-  // Satuan untuk setiap ingredient
-  final Map<String, String> ingredientUnits = {
-    'Tepung Terigu 1kg': 'gr',
-    'Telur 1kg': 'butir',
-    'Gula Pasir 1kg': 'gr',
-    'Susu Bubuk': 'gr',
-    'Cokelat Bubuk 250gr': 'gr',
-    'Mentega 500gr': 'gr',
-    'Keju Parut 250gr': 'gr',
-    'Baking Powder': 'gr',
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadRecipes();
+  }
+
+  Future<void> _loadRecipes() async {
+    try {
+      final fetchedRecipes = await MLService.getRecipes();
+
+      setState(() {
+        recipes = fetchedRecipes;
+
+        // Build recipeIngredients map
+        for (var recipe in recipes) {
+          recipeIngredients[recipe['recipe_name']] = {};
+
+          if (recipe['ingredients'] != null) {
+            for (var ingredient in recipe['ingredients']) {
+              recipeIngredients[recipe['recipe_name']]![ingredient['product_name']] = {
+                'quantity': ingredient['quantity_needed'],
+                'unit': ingredient['unit'],
+              };
+            }
+          }
+        }
+
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading recipes: $e');
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat resep: $e')),
+      );
+    }
+  }
 
   Map<String, int> get requiredIngredients {
     if (_selectedRecipe == null || _productionQuantity == 0) {
       return {};
     }
-    final recipe = recipeDetails[_selectedRecipe]!;
-    return recipe.map((ingredient, amount) =>
-        MapEntry(ingredient, amount * _productionQuantity));
+
+    final ingredients = recipeIngredients[_selectedRecipe] ?? {};
+    final required = <String, int>{};
+
+    ingredients.forEach((productName, details) {
+      final quantity = (details['quantity'] as num).toInt();
+      required[productName] = quantity * _productionQuantity;
+    });
+
+    return required;
   }
 
   Map<String, int> get insufficientStock {
@@ -105,6 +101,15 @@ class _PredictionScreenState extends State<PredictionScreen> {
   }
 
   bool get isStockSufficient => insufficientStock.isEmpty;
+
+  String _getIngredientUnit(String ingredient) {
+    if (_selectedRecipe == null) return 'gr';
+    final recipeIngs = recipeIngredients[_selectedRecipe];
+    if (recipeIngs == null) return 'gr';
+    final ingData = recipeIngs[ingredient];
+    if (ingData == null) return 'gr';
+    return ingData['unit'] as String? ?? 'gr';
+  }
 
   Color _getStatusColor(String ingredient) {
     final required = requiredIngredients[ingredient] ?? 0;
@@ -236,7 +241,34 @@ class _PredictionScreenState extends State<PredictionScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: _isLoading
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Memuat resep...'),
+                ],
+              ),
+            )
+          : recipes.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 48, color: Color(0xFFDC2626)),
+                      const SizedBox(height: 16),
+                      const Text('Gagal memuat resep'),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: _loadRecipes,
+                        child: const Text('Coba Lagi'),
+                      ),
+                    ],
+                  ),
+                )
+              : SingleChildScrollView(
         child: Column(
           children: [
             Padding(
@@ -313,13 +345,13 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                   ),
                                   items: recipes
                                       .map((recipe) =>
-                                          DropdownMenuItem(
-                                            value: recipe,
+                                          DropdownMenuItem<String>(
+                                            value: recipe['recipe_name'] as String,
                                             child: Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
                                                       horizontal: 12),
-                                              child: Text(recipe),
+                                              child: Text(recipe['recipe_name'] as String),
                                             ),
                                           ))
                                       .toList(),
@@ -561,7 +593,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                           final neededAmount = entry.value.value;
                           final availableAmount =
                               currentStock[ingredient] ?? 0;
-                          final unit = ingredientUnits[ingredient] ?? 'gr';
+                          final unit = _getIngredientUnit(ingredient);
                           final isSufficient =
                               availableAmount >= neededAmount;
 
@@ -727,8 +759,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                               .map((entry) {
                             final ingredient = entry.key;
                             final deficitAmount = entry.value;
-                            final unit =
-                                ingredientUnits[ingredient] ?? 'gr';
+                            final unit = _getIngredientUnit(ingredient);
 
                             return Padding(
                               padding:

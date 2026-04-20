@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:finalproject/models/product_model.dart';
 import 'package:finalproject/theme/colors.dart';
 import 'package:finalproject/theme/text_styles.dart';
+import 'package:finalproject/services/ml_service.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({Key? key}) : super(key: key);
@@ -13,73 +14,56 @@ class ProductListScreen extends StatefulWidget {
 class _ProductListScreenState extends State<ProductListScreen> {
   String _selectedFilter = 'semua';
   String _searchQuery = '';
+  bool _isLoading = true;
 
-  final List<Product> products = [
-    Product(
-      id: 1,
-      name: 'Tepung Terigu 1kg',
-      category: 'Tepung',
-      price: 15000,
-      stock: 45,
-      status: 'tersedia',
-    ),
-    Product(
-      id: 2,
-      name: 'Telur 1kg',
-      category: 'Telur',
-      price: 35000,
-      stock: 12,
-      status: 'rendah',
-    ),
-    Product(
-      id: 3,
-      name: 'Gula Pasir 1kg',
-      category: 'Gula',
-      price: 20000,
-      stock: 28,
-      status: 'tersedia',
-    ),
-    Product(
-      id: 4,
-      name: 'Susu Bubuk',
-      category: 'Susu',
-      price: 45000,
-      stock: 8,
-      status: 'kritis',
-    ),
-    Product(
-      id: 5,
-      name: 'Cokelat Bubuk 250gr',
-      category: 'Cokelat',
-      price: 35000,
-      stock: 22,
-      status: 'tersedia',
-    ),
-    Product(
-      id: 6,
-      name: 'Mentega 500gr',
-      category: 'Mentega',
-      price: 50000,
-      stock: 15,
-      status: 'tersedia',
-    ),
-    Product(
-      id: 7,
-      name: 'Keju Parut 250gr',
-      category: 'Keju',
-      price: 40000,
-      stock: 3,
-      status: 'rendah',
-    ),
-    Product(
-      id: 8,
-      name: 'Baking Powder',
-      category: 'Bahan Tambahan',
-      price: 12000,
-      stock: 60,
-      status: 'tersedia',
-    ),
-  ];
+  late List<Product> products = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProducts();
+  }
+
+  Future<void> _loadProducts() async {
+    try {
+      final fetchedProducts = await MLService.getProducts();
+
+      // Determine stock status based on quantity
+      String _getStatus(int stock) {
+        if (stock == 0) return 'kritis';
+        if (stock <= 5) return 'rendah';
+        return 'tersedia';
+      }
+
+      final productList = fetchedProducts.map((p) {
+        int stock = p['current_stock'] ?? 0;
+        return Product(
+          id: p['id'] ?? 0,
+          name: p['name'] ?? '',
+          category: p['category'] ?? '',
+          price: p['price'] ?? 0,
+          stock: stock,
+          status: _getStatus(stock),
+        );
+      }).toList();
+
+      setState(() {
+        products = productList;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading products: $e');
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Gagal memuat data produk'),
+            backgroundColor: AppColors.statusError,
+          ),
+        );
+      }
+    }
+  }
 
   List<Product> get filteredProducts {
     List<Product> result = products;
@@ -187,8 +171,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
+                        children: [
+                          const Text(
                             'Data Produk',
                             style: TextStyle(
                               color: Colors.white,
@@ -196,10 +180,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
-                            '8 Produk',
-                            style: TextStyle(
+                            '${products.length} Produk',
+                            style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
@@ -250,108 +234,127 @@ class _ProductListScreenState extends State<ProductListScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Filter Chips Section (moved to body)
-            Container(
-              color: AppColors.bgWhite,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    'semua',
-                    'tersedia',
-                    'rendah',
-                    'kritis'
-                  ]
-                      .map((filter) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              label: Text(
-                                _capitalize(filter),
-                                style: AppTextStyles.labelSmall.copyWith(
-                                  color: _selectedFilter == filter
-                                      ? Colors.white
-                                      : AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              backgroundColor: _selectedFilter == filter
-                                  ? AppColors.primaryBrown
-                                  : AppColors.bgLight,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                side: BorderSide(
-                                  color: _selectedFilter == filter
-                                      ? AppColors.primaryBrown
-                                      : AppColors.grey200,
-                                  width: 1,
-                                ),
-                              ),
-                              onSelected: (selected) {
-                                setState(() => _selectedFilter = filter);
-                              },
-                            ),
-                          ))
-                      .toList(),
+      body: RefreshIndicator(
+        onRefresh: _loadProducts,
+        color: AppColors.primaryBrown,
+        child: _isLoading
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFF8B6E58),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Text('Memuat data produk...'),
+                  ],
                 ),
-              ),
-            ),
-
-            // Products List
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: filteredProducts.isNotEmpty
-                  ? Column(
-                      children: filteredProducts
-                          .map((product) => _buildProductCard(product))
-                          .toList()
-                          .expand((card) =>
-                              [card, const SizedBox(height: 12)])
-                          .toList(),
-                    )
-                  : Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 60),
-                        child: Column(
+              )
+            : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Filter Chips Section (moved to body)
+                    Container(
+                      color: AppColors.bgWhite,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
                           children: [
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                color: AppColors.grey200,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Icon(
-                                Icons.shopping_bag_outlined,
-                                size: 40,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Produk Tidak Ditemukan',
-                              style: AppTextStyles.headlineSmall.copyWith(
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Coba ubah filter atau cari dengan kata kunci lain',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+                            'semua',
+                            'tersedia',
+                            'rendah',
+                            'kritis'
+                          ]
+                              .map((filter) => Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: FilterChip(
+                                      label: Text(
+                                        _capitalize(filter),
+                                        style: AppTextStyles.labelSmall.copyWith(
+                                          color: _selectedFilter == filter
+                                              ? Colors.white
+                                              : AppColors.textSecondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      backgroundColor: _selectedFilter == filter
+                                          ? AppColors.primaryBrown
+                                          : AppColors.bgLight,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        side: BorderSide(
+                                          color: _selectedFilter == filter
+                                              ? AppColors.primaryBrown
+                                              : AppColors.grey200,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      onSelected: (selected) {
+                                        setState(() => _selectedFilter = filter);
+                                      },
+                                    ),
+                                  ))
+                              .toList(),
                         ),
                       ),
                     ),
-            ),
-          ],
-        ),
+
+                    // Products List
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: filteredProducts.isNotEmpty
+                          ? Column(
+                              children: filteredProducts
+                                  .map((product) => _buildProductCard(product))
+                                  .toList()
+                                  .expand((card) =>
+                                      [card, const SizedBox(height: 12)])
+                                  .toList(),
+                            )
+                          : Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 60),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.grey200,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Icon(
+                                        Icons.shopping_bag_outlined,
+                                        size: 40,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Produk Tidak Ditemukan',
+                                      style: AppTextStyles.headlineSmall.copyWith(
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Coba ubah filter atau cari dengan kata kunci lain',
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 1,

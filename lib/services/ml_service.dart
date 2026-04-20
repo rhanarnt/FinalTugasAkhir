@@ -5,7 +5,7 @@ class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://192.168.1.13:5000';
+  static const String baseUrl = 'http://192.168.1.2:5000';
 
   static const int timeoutSeconds = 30;
 
@@ -206,6 +206,46 @@ class MLService {
     } catch (e) {
       print('Get products error: $e');
       return [];
+    }
+  }
+
+  /// Create new product in database
+  static Future<Map<String, dynamic>> createProduct({
+    required String name,
+    required String category,
+    required int price,
+    required int currentStock,
+  }) async {
+    try {
+      final data = {
+        'name': name,
+        'category': category,
+        'price': price,
+        'current_stock': currentStock,
+      };
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/products'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(data),
+          )
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      if (response.statusCode == 201) {
+        return jsonDecode(response.body);
+      } else if (response.statusCode == 409) {
+        final result = jsonDecode(response.body);
+        return result;
+      } else {
+        return {
+          'status': 'error',
+          'message': 'Server error: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('Create product error: $e');
+      return {'status': 'error', 'message': 'Connection error: $e'};
     }
   }
 

@@ -46,45 +46,47 @@ class _TransactionScreenState extends State<TransactionScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize products
-    products = [
-      'Tepung Terigu 1kg',
-      'Telur 1kg',
-      'Gula Pasir 1kg',
-      'Susu Bubuk',
-      'Cokelat Bubuk 250gr',
-      'Mentega 500gr',
-      'Keju Parut 250gr',
-      'Baking Powder',
-    ];
-
-    productCategories = {
-      'Tepung Terigu 1kg': 'Tepung',
-      'Telur 1kg': 'Telur',
-      'Gula Pasir 1kg': 'Gula',
-      'Susu Bubuk': 'Susu',
-      'Cokelat Bubuk 250gr': 'Cokelat',
-      'Mentega 500gr': 'Mentega',
-      'Keju Parut 250gr': 'Keju',
-      'Baking Powder': 'Bahan Tambahan',
-    };
-
-    productPrices = {
-      'Tepung Terigu 1kg': 15000,
-      'Telur 1kg': 35000,
-      'Gula Pasir 1kg': 20000,
-      'Susu Bubuk': 45000,
-      'Cokelat Bubuk 250gr': 35000,
-      'Mentega 500gr': 50000,
-      'Keju Parut 250gr': 40000,
-      'Baking Powder': 12000,
-    };
-
-    // Extract unique categories
-    categories = productCategories.values.toSet().toList();
-
     _quantityController = TextEditingController();
     _selectedDate = DateTime.now();
+    _loadProducts();
+  }
+
+  Future<void> _loadProducts() async {
+    try {
+      final fetchedProducts = await MLService.getProducts();
+
+      setState(() {
+        products = [];
+        productCategories = {};
+        productPrices = {};
+        categories = [];
+
+        // Convert API response to local maps
+        for (var product in fetchedProducts) {
+          String name = product['name'] ?? '';
+          String category = product['category'] ?? '';
+          int price = product['price'] ?? 0;
+
+          if (name.isNotEmpty) {
+            products.add(name);
+            productCategories[name] = category;
+            productPrices[name] = price;
+
+            if (!categories.contains(category)) {
+              categories.add(category);
+            }
+          }
+        }
+      });
+    } catch (e) {
+      print('Error loading products: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Gagal memuat data produk'),
+          backgroundColor: AppColors.statusError,
+        ),
+      );
+    }
   }
 
   @override
@@ -429,7 +431,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: () {
+                                onPressed: () async {
                                   final productName =
                                       newProductNameController.text.trim();
                                   final category = _createNewCategory
@@ -467,32 +469,74 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                     return;
                                   }
 
-                                  // Add new product
-                                  setState(() {
-                                    products.add(productName);
-                                    productCategories[productName] =
-                                        category;
-                                    productPrices[productName] = priceInt;
+                                  // Frontend validation: check duplicate
+                                  if (products.contains(productName)) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Produk "$productName" sudah ada'),
+                                        backgroundColor:
+                                            AppColors.statusError,
+                                      ),
+                                    );
+                                    return;
+                                  }
 
-                                    // Add new category if created
-                                    if (_createNewCategory &&
-                                        !categories.contains(category)) {
-                                      categories.add(category);
-                                    }
+                                  // Call API to create product
+                                  setStateDialog(() {
+                                    // Show loading in dialog via disabling button
                                   });
 
-                                  Navigator.pop(context);
-
-                                  // Show success message
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'Produk "$productName" berhasil ditambahkan'),
-                                      backgroundColor:
-                                          AppColors.statusSuccess,
-                                    ),
+                                  final result =
+                                      await MLService.createProduct(
+                                    name: productName,
+                                    category: category,
+                                    price: priceInt,
+                                    currentStock: 0, // Default stock 0
                                   );
+
+                                  if (!mounted) return;
+
+                                  if (result['status'] == 'success') {
+                                    // Add to local state for immediate UI update
+                                    setState(() {
+                                      products.add(productName);
+                                      productCategories[productName] =
+                                          category;
+                                      productPrices[productName] = priceInt;
+
+                                      if (_createNewCategory &&
+                                          !categories.contains(category)) {
+                                        categories.add(category);
+                                      }
+                                    });
+
+                                    Navigator.pop(context);
+
+                                    // Show success message
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Produk "$productName" berhasil ditambahkan'),
+                                        backgroundColor:
+                                            AppColors.statusSuccess,
+                                      ),
+                                    );
+                                  } else {
+                                    // Handle error from API
+                                    String errorMsg = result['message'] ??
+                                        'Gagal menambahkan produk';
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(errorMsg),
+                                        backgroundColor:
+                                            AppColors.statusError,
+                                      ),
+                                    );
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primaryBrown,

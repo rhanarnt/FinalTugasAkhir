@@ -237,15 +237,26 @@ class MLService {
       } else if (response.statusCode == 409) {
         final result = jsonDecode(response.body);
         return result;
-      } else {
+      } else if (response.statusCode == 400) {
+        final result = jsonDecode(response.body);
         return {
           'status': 'error',
-          'message': 'Server error: ${response.statusCode}',
+          'message': result['message'] ?? 'Bad request'
+        };
+      } else {
+        print('Create product error - Status: ${response.statusCode}');
+        print('Response body: ${response.body}');
+        return {
+          'status': 'error',
+          'message': 'Server error: ${response.statusCode}'
         };
       }
     } catch (e) {
-      print('Create product error: $e');
-      return {'status': 'error', 'message': 'Connection error: $e'};
+      print('Create product exception: $e');
+      return {
+        'status': 'error',
+        'message': 'Connection error: $e'
+      };
     }
   }
 

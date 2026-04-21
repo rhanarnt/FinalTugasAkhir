@@ -5,7 +5,7 @@ class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://192.168.1.2:5000';
+  static const String baseUrl = 'http://192.168.18.30:5000';
 
   static const int timeoutSeconds = 30;
 
@@ -241,22 +241,19 @@ class MLService {
         final result = jsonDecode(response.body);
         return {
           'status': 'error',
-          'message': result['message'] ?? 'Bad request'
+          'message': result['message'] ?? 'Bad request',
         };
       } else {
         print('Create product error - Status: ${response.statusCode}');
         print('Response body: ${response.body}');
         return {
           'status': 'error',
-          'message': 'Server error: ${response.statusCode}'
+          'message': 'Server error: ${response.statusCode}',
         };
       }
     } catch (e) {
       print('Create product exception: $e');
-      return {
-        'status': 'error',
-        'message': 'Connection error: $e'
-      };
+      return {'status': 'error', 'message': 'Connection error: $e'};
     }
   }
 
@@ -280,7 +277,47 @@ class MLService {
     }
   }
 
-  /// Save transaction to database
+  /// Save transaction and update stock automatically
+  static Future<Map<String, dynamic>> addTransactionWithStockUpdate({
+    required int productId,
+    required int quantity,
+    required int unitPrice,
+    required int totalPrice,
+    required String transactionDate, // Format: 'YYYY-MM-DD'
+  }) async {
+    try {
+      final data = {
+        'produk_id': productId,
+        'jumlah': quantity,
+        'unit_price': unitPrice,
+        'total_price': totalPrice,
+        'transaction_date': transactionDate,
+      };
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/transaksi'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(data),
+          )
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      if (response.statusCode == 201) {
+        final result = jsonDecode(response.body);
+        return result;
+      } else {
+        return {
+          'status': 'error',
+          'message': 'Server error: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('Add transaction with stock update error: $e');
+      return {'status': 'error', 'message': 'Connection error: $e'};
+    }
+  }
+
+  /// Save transaction to database (legacy - without stock update)
   static Future<bool> saveTransaction({
     required String productName,
     required String category,

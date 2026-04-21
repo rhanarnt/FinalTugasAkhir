@@ -5,12 +5,14 @@ import 'package:finalproject/models/transaction_model.dart';
 import 'package:finalproject/services/ml_service.dart';
 
 class CartItem {
+  final int productId;
   final String productName;
   final String category;
   final int unitPrice;
   int quantity;
 
   CartItem({
+    required this.productId,
     required this.productName,
     required this.category,
     required this.unitPrice,
@@ -35,6 +37,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
   // Products list (mutable)
   late List<String> products;
+  late Map<String, int> productIds;
   late Map<String, String> productCategories;
   late Map<String, int> productPrices;
   late List<String> categories;
@@ -57,18 +60,21 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
       setState(() {
         products = [];
+        productIds = {};
         productCategories = {};
         productPrices = {};
         categories = [];
 
         // Convert API response to local maps
         for (var product in fetchedProducts) {
+          int id = product['id'] ?? 0;
           String name = product['name'] ?? '';
           String category = product['category'] ?? '';
           int price = product['price'] ?? 0;
 
-          if (name.isNotEmpty) {
+          if (name.isNotEmpty && id > 0) {
             products.add(name);
+            productIds[name] = id;
             productCategories[name] = category;
             productPrices[name] = price;
 
@@ -117,8 +123,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
       return;
     }
 
-    final existingIndex =
-        cartItems.indexWhere((item) => item.productName == _selectedProduct);
+    final existingIndex = cartItems.indexWhere(
+      (item) => item.productName == _selectedProduct,
+    );
 
     setState(() {
       if (existingIndex >= 0) {
@@ -128,6 +135,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
         // Add new item to cart
         cartItems.add(
           CartItem(
+            productId: productIds[_selectedProduct!] ?? 0,
             productName: _selectedProduct!,
             category: productCategories[_selectedProduct!]!,
             unitPrice: productPrices[_selectedProduct!]!,
@@ -183,28 +191,36 @@ class _TransactionScreenState extends State<TransactionScreen> {
       final dateStr =
           '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
 
+      int successCount = 0;
+      String? firstError;
+
       for (final item in cartItems) {
-        await MLService.saveTransaction(
-          productName: item.productName,
-          category: item.category,
+        // Use new endpoint that updates stock automatically
+        final result = await MLService.addTransactionWithStockUpdate(
+          productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           totalPrice: item.totalPrice,
           transactionDate: dateStr,
         );
 
-        // Add to transaction history
-        final transaction = Transaction(
-          id: transactions.length + 1,
-          productName: item.productName,
-          category: item.category,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalPrice: item.totalPrice,
-          date: _selectedDate ?? DateTime.now(),
-        );
-
-        transactions.insert(0, transaction);
+        if (result['status'] == 'success') {
+          successCount++;
+          // Add to transaction history
+          final transaction = Transaction(
+            id: transactions.length + 1,
+            productName: item.productName,
+            category: item.category,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            date: _selectedDate ?? DateTime.now(),
+          );
+          transactions.insert(0, transaction);
+        } else {
+          firstError ??= result['message'] ?? 'Transaksi gagal';
+          print('Transaction failed for ${item.productName}: ${result['message']}');
+        }
       }
 
       setState(() {
@@ -213,13 +229,23 @@ class _TransactionScreenState extends State<TransactionScreen> {
         _selectedDate = DateTime.now();
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('✅ ${transactions.length} transaksi berhasil disimpan!'),
-          backgroundColor: AppColors.statusSuccess,
-        ),
-      );
+      if (firstError != null && successCount < cartItems.length) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '⚠️ $successCount/${cartItems.length} transaksi berhasil. Error: $firstError',
+            ),
+            backgroundColor: AppColors.statusError,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ $successCount transaksi berhasil disimpan dan stok terupdate!'),
+            backgroundColor: AppColors.statusSuccess,
+          ),
+        );
+      }
     } catch (e) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -241,330 +267,373 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.bgWhite,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Container(
-                    width: double.infinity,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setStateDialog) => Dialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Container(
                     decoration: BoxDecoration(
-                      color: AppColors.primaryBrown,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                      ),
+                      color: AppColors.bgWhite,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      'Tambah Produk Baru',
-                      style: AppTextStyles.headlineSmall.copyWith(
-                        color: Colors.white,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryBrown,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                topRight: Radius.circular(16),
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              'Tambah Produk Baru',
+                              style: AppTextStyles.headlineSmall.copyWith(
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Product Name
+                                Text(
+                                  'Nama Produk',
+                                  style: AppTextStyles.labelLarge.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: newProductNameController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Masukkan nama produk',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    filled: true,
+                                    fillColor: AppColors.bgLight,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Category Selection
+                                Text(
+                                  'Kategori',
+                                  style: AppTextStyles.labelLarge.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                if (!_createNewCategory)
+                                  Column(
+                                    children: [
+                                      DropdownButtonFormField<String>(
+                                        value:
+                                            _selectedCategory.isNotEmpty
+                                                ? _selectedCategory
+                                                : null,
+                                        items:
+                                            categories
+                                                .map(
+                                                  (cat) => DropdownMenuItem(
+                                                    value: cat,
+                                                    child: Text(cat),
+                                                  ),
+                                                )
+                                                .toList(),
+                                        onChanged: (value) {
+                                          setStateDialog(
+                                            () =>
+                                                _selectedCategory = value ?? '',
+                                          );
+                                        },
+                                        decoration: InputDecoration(
+                                          hintText: 'Pilih kategori',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          filled: true,
+                                          fillColor: AppColors.bgLight,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      GestureDetector(
+                                        onTap: () {
+                                          setStateDialog(
+                                            () => _createNewCategory = true,
+                                          );
+                                        },
+                                        child: Text(
+                                          '+ Tambah kategori baru',
+                                          style: AppTextStyles.labelMedium
+                                              .copyWith(
+                                                color: AppColors.secondaryBlue,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                else
+                                  Column(
+                                    children: [
+                                      TextFormField(
+                                        controller: newCategoryController,
+                                        decoration: InputDecoration(
+                                          hintText:
+                                              'Masukkan nama kategori baru',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          filled: true,
+                                          fillColor: AppColors.bgLight,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      GestureDetector(
+                                        onTap: () {
+                                          setStateDialog(
+                                            () => _createNewCategory = false,
+                                          );
+                                          newCategoryController.clear();
+                                        },
+                                        child: Text(
+                                          '← Kembali ke kategori existing',
+                                          style: AppTextStyles.labelMedium
+                                              .copyWith(
+                                                color: AppColors.textSecondary,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                const SizedBox(height: 16),
+
+                                // Price
+                                Text(
+                                  'Harga (Rp)',
+                                  style: AppTextStyles.labelLarge.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: newPriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    hintText: 'Masukkan harga',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    filled: true,
+                                    fillColor: AppColors.bgLight,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+
+                                // Buttons
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          side: BorderSide(
+                                            color: AppColors.textSecondary,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Batal',
+                                          style: AppTextStyles.labelLarge
+                                              .copyWith(
+                                                color: AppColors.textSecondary,
+                                              ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () async {
+                                          final productName =
+                                              newProductNameController.text
+                                                  .trim();
+                                          final category =
+                                              _createNewCategory
+                                                  ? newCategoryController.text
+                                                      .trim()
+                                                  : _selectedCategory;
+                                          final price =
+                                              newPriceController.text.trim();
+
+                                          if (productName.isEmpty ||
+                                              category.isEmpty ||
+                                              price.isEmpty) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: const Text(
+                                                  'Semua field harus diisi',
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.statusError,
+                                              ),
+                                            );
+                                            return;
+                                          }
+
+                                          final priceInt =
+                                              int.tryParse(price) ?? 0;
+                                          if (priceInt <= 0) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: const Text(
+                                                  'Harga harus lebih dari 0',
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.statusError,
+                                              ),
+                                            );
+                                            return;
+                                          }
+
+                                          // Frontend validation: check duplicate
+                                          if (products.contains(productName)) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Produk "$productName" sudah ada',
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.statusError,
+                                              ),
+                                            );
+                                            return;
+                                          }
+
+                                          // Call API to create product
+                                          setStateDialog(() {
+                                            // Show loading in dialog via disabling button
+                                          });
+
+                                          final result =
+                                              await MLService.createProduct(
+                                                name: productName,
+                                                category: category,
+                                                price: priceInt,
+                                                currentStock:
+                                                    0, // Default stock 0
+                                              );
+
+                                          if (!mounted) return;
+
+                                          if (result['status'] == 'success') {
+                                            // Add to local state for immediate UI update
+                                            setState(() {
+                                              products.add(productName);
+                                              productCategories[productName] =
+                                                  category;
+                                              productPrices[productName] =
+                                                  priceInt;
+
+                                              if (_createNewCategory &&
+                                                  !categories.contains(
+                                                    category,
+                                                  )) {
+                                                categories.add(category);
+                                              }
+                                            });
+
+                                            Navigator.pop(context);
+
+                                            // Show success message
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Produk "$productName" berhasil ditambahkan',
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.statusSuccess,
+                                              ),
+                                            );
+                                          } else {
+                                            // Handle error from API
+                                            String errorMsg =
+                                                result['message'] ??
+                                                'Gagal menambahkan produk';
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(errorMsg),
+                                                backgroundColor:
+                                                    AppColors.statusError,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              AppColors.primaryBrown,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Simpan',
+                                          style: AppTextStyles.labelLarge
+                                              .copyWith(color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Product Name
-                        Text(
-                          'Nama Produk',
-                          style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: newProductNameController,
-                          decoration: InputDecoration(
-                            hintText: 'Masukkan nama produk',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            filled: true,
-                            fillColor: AppColors.bgLight,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Category Selection
-                        Text(
-                          'Kategori',
-                          style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        if (!_createNewCategory)
-                          Column(
-                            children: [
-                              DropdownButtonFormField<String>(
-                                value: _selectedCategory.isNotEmpty
-                                    ? _selectedCategory
-                                    : null,
-                                items: categories
-                                    .map((cat) => DropdownMenuItem(
-                                          value: cat,
-                                          child: Text(cat),
-                                        ))
-                                    .toList(),
-                                onChanged: (value) {
-                                  setStateDialog(
-                                    () => _selectedCategory = value ?? '',
-                                  );
-                                },
-                                decoration: InputDecoration(
-                                  hintText: 'Pilih kategori',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  filled: true,
-                                  fillColor: AppColors.bgLight,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              GestureDetector(
-                                onTap: () {
-                                  setStateDialog(
-                                      () => _createNewCategory = true);
-                                },
-                                child: Text(
-                                  '+ Tambah kategori baru',
-                                  style: AppTextStyles.labelMedium.copyWith(
-                                    color: AppColors.secondaryBlue,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        else
-                          Column(
-                            children: [
-                              TextFormField(
-                                controller: newCategoryController,
-                                decoration: InputDecoration(
-                                  hintText: 'Masukkan nama kategori baru',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  filled: true,
-                                  fillColor: AppColors.bgLight,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              GestureDetector(
-                                onTap: () {
-                                  setStateDialog(
-                                      () => _createNewCategory = false);
-                                  newCategoryController.clear();
-                                },
-                                child: Text(
-                                  '← Kembali ke kategori existing',
-                                  style: AppTextStyles.labelMedium.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        const SizedBox(height: 16),
-
-                        // Price
-                        Text(
-                          'Harga (Rp)',
-                          style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: newPriceController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: 'Masukkan harga',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            filled: true,
-                            fillColor: AppColors.bgLight,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.pop(context),
-                                style: OutlinedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  side: BorderSide(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Batal',
-                                  style: AppTextStyles.labelLarge.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () async {
-                                  final productName =
-                                      newProductNameController.text.trim();
-                                  final category = _createNewCategory
-                                      ? newCategoryController.text.trim()
-                                      : _selectedCategory;
-                                  final price = newPriceController.text.trim();
-
-                                  if (productName.isEmpty ||
-                                      category.isEmpty ||
-                                      price.isEmpty) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
-                                      SnackBar(
-                                        content: const Text(
-                                            'Semua field harus diisi'),
-                                        backgroundColor:
-                                            AppColors.statusError,
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  final priceInt =
-                                      int.tryParse(price) ?? 0;
-                                  if (priceInt <= 0) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
-                                      SnackBar(
-                                        content: const Text(
-                                            'Harga harus lebih dari 0'),
-                                        backgroundColor:
-                                            AppColors.statusError,
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  // Frontend validation: check duplicate
-                                  if (products.contains(productName)) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                            'Produk "$productName" sudah ada'),
-                                        backgroundColor:
-                                            AppColors.statusError,
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  // Call API to create product
-                                  setStateDialog(() {
-                                    // Show loading in dialog via disabling button
-                                  });
-
-                                  final result =
-                                      await MLService.createProduct(
-                                    name: productName,
-                                    category: category,
-                                    price: priceInt,
-                                    currentStock: 0, // Default stock 0
-                                  );
-
-                                  if (!mounted) return;
-
-                                  if (result['status'] == 'success') {
-                                    // Add to local state for immediate UI update
-                                    setState(() {
-                                      products.add(productName);
-                                      productCategories[productName] =
-                                          category;
-                                      productPrices[productName] = priceInt;
-
-                                      if (_createNewCategory &&
-                                          !categories.contains(category)) {
-                                        categories.add(category);
-                                      }
-                                    });
-
-                                    Navigator.pop(context);
-
-                                    // Show success message
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                            'Produk "$productName" berhasil ditambahkan'),
-                                        backgroundColor:
-                                            AppColors.statusSuccess,
-                                      ),
-                                    );
-                                  } else {
-                                    // Handle error from API
-                                    String errorMsg = result['message'] ??
-                                        'Gagal menambahkan produk';
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
-                                      SnackBar(
-                                        content: Text(errorMsg),
-                                        backgroundColor:
-                                            AppColors.statusError,
-                                      ),
-                                    );
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryBrown,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Simpan',
-                                  style: AppTextStyles.labelLarge.copyWith(
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
           ),
-        ),
-      ),
     );
   }
 
@@ -577,9 +646,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
         elevation: 0,
         title: Text(
           'Transaksi Penjualan',
-          style: AppTextStyles.headlineLarge.copyWith(
-            color: Colors.white,
-          ),
+          style: AppTextStyles.headlineLarge.copyWith(color: Colors.white),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -629,12 +696,15 @@ class _TransactionScreenState extends State<TransactionScreen> {
                         filled: true,
                         fillColor: AppColors.bgLight,
                       ),
-                      items: products
-                          .map((product) => DropdownMenuItem(
-                                value: product,
-                                child: Text(product),
-                              ))
-                          .toList(),
+                      items:
+                          products
+                              .map(
+                                (product) => DropdownMenuItem(
+                                  value: product,
+                                  child: Text(product),
+                                ),
+                              )
+                              .toList(),
                       onChanged: (value) {
                         setState(() => _selectedProduct = value);
                       },
@@ -690,9 +760,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                         label: const Text('Tambah Produk Baru'),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(
-                            color: AppColors.secondaryBlue,
-                          ),
+                          side: BorderSide(color: AppColors.secondaryBlue),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -771,16 +839,17 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                             item.productName,
                                             style: AppTextStyles.labelLarge
                                                 .copyWith(
-                                              color: AppColors.textPrimary,
-                                            ),
+                                                  color: AppColors.textPrimary,
+                                                ),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
                                             'Rp ${item.unitPrice} / unit',
                                             style: AppTextStyles.labelSmall
                                                 .copyWith(
-                                              color: AppColors.textSecondary,
-                                            ),
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -803,8 +872,11 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                     Row(
                                       children: [
                                         GestureDetector(
-                                          onTap: () =>
-                                              _updateQuantity(index, item.quantity - 1),
+                                          onTap:
+                                              () => _updateQuantity(
+                                                index,
+                                                item.quantity - 1,
+                                              ),
                                           child: Container(
                                             width: 32,
                                             height: 32,
@@ -825,14 +897,17 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                           item.quantity.toString(),
                                           style: AppTextStyles.labelLarge
                                               .copyWith(
-                                            color: AppColors.textPrimary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                                color: AppColors.textPrimary,
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                         ),
                                         const SizedBox(width: 12),
                                         GestureDetector(
-                                          onTap: () =>
-                                              _updateQuantity(index, item.quantity + 1),
+                                          onTap:
+                                              () => _updateQuantity(
+                                                index,
+                                                item.quantity + 1,
+                                              ),
                                           child: Container(
                                             width: 32,
                                             height: 32,
@@ -859,8 +934,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                         decoration: BoxDecoration(
                                           color: AppColors.statusError
                                               .withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(6),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
                                         ),
                                         child: Icon(
                                           Icons.delete,
@@ -963,18 +1039,19 @@ class _TransactionScreenState extends State<TransactionScreen> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          icon: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
+                          icon:
+                              _isLoading
+                                  ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
                                     ),
-                                  ),
-                                )
-                              : const Icon(Icons.check_circle),
+                                  )
+                                  : const Icon(Icons.check_circle),
                           label: Text(
                             _isLoading ? 'Menyimpan...' : 'Simpan Transaksi',
                             style: AppTextStyles.labelLarge,

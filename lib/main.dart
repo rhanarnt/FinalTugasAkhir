@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:finalproject/theme/app_theme.dart';
 import 'package:finalproject/screens/splash_screen.dart';
-import 'package:finalproject/screens/login_screen.dart';
-import 'package:finalproject/screens/dashboard_screen.dart';
-import 'package:finalproject/screens/prediction_screen.dart';
-import 'package:finalproject/screens/transaction_screen.dart';
-import 'package:finalproject/screens/product_list_screen.dart';
-import 'package:finalproject/screens/report_screen.dart';
-import 'package:finalproject/screens/settings_screen.dart';
+import 'package:finalproject/screens/login/login_page.dart';
+import 'package:finalproject/screens/dashboard/dashboard_page.dart';
+import 'package:finalproject/screens/prediction/prediction_page.dart';
+import 'package:finalproject/screens/transaction/transaction_page.dart';
+import 'package:finalproject/screens/products/product_list_page.dart';
+import 'package:finalproject/screens/reports/report_page.dart';
+import 'package:finalproject/screens/settings/settings_page.dart';
 
 void main() {
   runApp(const MyApp());

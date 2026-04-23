@@ -4,6 +4,7 @@ class Product {
   final String category;
   final int price;
   final int stock;
+  final String unit;
   final String status; // 'tersedia', 'rendah', 'kritis'
 
   Product({
@@ -12,6 +13,7 @@ class Product {
     required this.category,
     required this.price,
     required this.stock,
+    this.unit = 'kg',
     this.status = 'tersedia',
   });
 
@@ -22,6 +24,7 @@ class Product {
       category: json['category'] as String,
       price: json['price'] as int,
       stock: json['stock'] as int,
+      unit: (json['unit'] as String?) ?? 'kg',
       status: json['status'] as String? ?? 'tersedia',
     );
   }
@@ -33,6 +36,7 @@ class Product {
       'category': category,
       'price': price,
       'stock': stock,
+      'unit': unit,
       'status': status,
     };
   }
@@ -43,6 +47,7 @@ class Product {
     String? category,
     int? price,
     int? stock,
+    String? unit,
     String? status,
   }) {
     return Product(
@@ -51,6 +56,7 @@ class Product {
       category: category ?? this.category,
       price: price ?? this.price,
       stock: stock ?? this.stock,
+      unit: unit ?? this.unit,
       status: status ?? this.status,
     );
   }

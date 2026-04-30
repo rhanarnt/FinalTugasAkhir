@@ -9,6 +9,7 @@ class PredictionController extends ChangeNotifier {
 
   List<Map<String, dynamic>> recipes = [];
   Map<String, Map<String, dynamic>> recipeIngredients = {};
+  Map<String, bool> ingredientSelections = {};
 
   final Map<String, int> currentStock = {
     'Tepung Terigu 1kg': 45000,
@@ -46,6 +47,8 @@ class PredictionController extends ChangeNotifier {
         }
       }
 
+      _initializeIngredientSelections();
+
       return null;
     } catch (e) {
       return 'Gagal memuat resep: $e';
@@ -58,6 +61,7 @@ class PredictionController extends ChangeNotifier {
   void setSelectedRecipe(String? value) {
     selectedRecipe = value;
     isCalculated = false;
+    _initializeIngredientSelections();
     notifyListeners();
   }
 
@@ -78,7 +82,29 @@ class PredictionController extends ChangeNotifier {
     selectedRecipe = null;
     productionQuantity = 0;
     isCalculated = false;
+    ingredientSelections = {};
     notifyListeners();
+  }
+
+  void setIngredientSelection(String ingredient, bool isSelected) {
+    ingredientSelections[ingredient] = isSelected;
+    notifyListeners();
+  }
+
+  bool isIngredientSelected(String ingredient) {
+    return ingredientSelections[ingredient] ?? true;
+  }
+
+  void _initializeIngredientSelections() {
+    if (selectedRecipe == null) {
+      ingredientSelections = {};
+      return;
+    }
+
+    final ingredients = recipeIngredients[selectedRecipe] ?? {};
+    ingredientSelections = {
+      for (final ingredient in ingredients.keys) ingredient: true,
+    };
   }
 
   Map<String, int> get requiredIngredients {
@@ -90,6 +116,7 @@ class PredictionController extends ChangeNotifier {
     final required = <String, int>{};
 
     ingredients.forEach((productName, details) {
+      if (!isIngredientSelected(productName)) return;
       final quantity = (details['quantity'] as num).toInt();
       required[productName] = quantity * productionQuantity;
     });

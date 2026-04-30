@@ -31,6 +31,12 @@ class _PredictionScreenState extends State<PredictionScreen> {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
+        final selectedRecipe = _controller.selectedRecipe;
+        final displayIngredients =
+            selectedRecipe == null
+                ? <String, Map<String, dynamic>>{}
+                : (_controller.recipeIngredients[selectedRecipe] ??
+                    <String, Map<String, dynamic>>{});
         return Scaffold(
           backgroundColor: const Color(0xFFF5F5F5),
           appBar: PreferredSize(
@@ -526,212 +532,272 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 2),
+                                if (displayIngredients.isEmpty)
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Text(
+                                      'Belum ada bahan untuk produk ini.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF6B7280),
                                       ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    children:
-                                        _controller.requiredIngredients.entries.toList().asMap().entries.map((
-                                          entry,
-                                        ) {
-                                          final isLast =
-                                              entry.key ==
-                                              _controller
-                                                      .requiredIngredients
-                                                      .length -
-                                                  1;
-                                          final ingredient = entry.value.key;
-                                          final neededAmount =
-                                              entry.value.value;
-                                          final availableAmount =
-                                              _controller
-                                                  .currentStock[ingredient] ??
-                                              0;
-                                          final unit = _controller
-                                              .getIngredientUnit(ingredient);
-                                          final isSufficient =
-                                              availableAmount >= neededAmount;
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      children:
+                                          displayIngredients.entries.toList().asMap().entries.map((
+                                            entry,
+                                          ) {
+                                            final isLast =
+                                                entry.key ==
+                                                displayIngredients.length - 1;
+                                            final ingredient = entry.value.key;
+                                            final details = entry.value.value;
+                                            final isSelected = _controller
+                                                .isIngredientSelected(
+                                                  ingredient,
+                                                );
+                                            final unit =
+                                                (details['unit'] as String?) ??
+                                                _controller.getIngredientUnit(
+                                                  ingredient,
+                                                );
+                                            final quantityPerUnit =
+                                                (details['quantity'] as num)
+                                                    .toInt();
+                                            final neededAmount =
+                                                isSelected
+                                                    ? quantityPerUnit *
+                                                        _controller
+                                                            .productionQuantity
+                                                    : 0;
+                                            final availableAmount =
+                                                _controller
+                                                    .currentStock[ingredient] ??
+                                                0;
+                                            final isSufficient =
+                                                availableAmount >= neededAmount;
+                                            final statusColor =
+                                                isSelected
+                                                    ? (isSufficient
+                                                        ? const Color(
+                                                          0xFF10B981,
+                                                        )
+                                                        : const Color(
+                                                          0xFFDC2626,
+                                                        ))
+                                                    : const Color(0xFF9CA3AF);
+                                            final statusLabel =
+                                                isSelected
+                                                    ? (isSufficient
+                                                        ? 'Aman'
+                                                        : 'Kurang')
+                                                    : 'Diabaikan';
 
-                                          return Column(
-                                            children: [
-                                              Padding(
-                                                padding: const EdgeInsets.all(
-                                                  14,
-                                                ),
-                                                child: Column(
-                                                  children: [
-                                                    Row(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Expanded(
-                                                          child: Column(
-                                                            crossAxisAlignment:
-                                                                CrossAxisAlignment
-                                                                    .start,
-                                                            children: [
-                                                              Text(
-                                                                _controller
-                                                                    .cleanIngredientName(
-                                                                      ingredient,
-                                                                    ),
-                                                                style: const TextStyle(
-                                                                  fontSize: 13,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                  color: Color(
-                                                                    0xFF1F2937,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              const SizedBox(
-                                                                height: 6,
-                                                              ),
-                                                              Row(
-                                                                children: [
-                                                                  Expanded(
-                                                                    child: Column(
-                                                                      crossAxisAlignment:
-                                                                          CrossAxisAlignment
-                                                                              .start,
-                                                                      children: [
-                                                                        const Text(
-                                                                          'Kebutuhan',
-                                                                          style: TextStyle(
-                                                                            fontSize:
-                                                                                11,
-                                                                            color: Color(
-                                                                              0xFF9CA3AF,
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                        Text(
-                                                                          '$neededAmount $unit',
-                                                                          style: const TextStyle(
-                                                                            fontSize:
-                                                                                12,
-                                                                            fontWeight:
-                                                                                FontWeight.w700,
-                                                                            color: Color(
-                                                                              0xFF1F2937,
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                      ],
-                                                                    ),
-                                                                  ),
-                                                                  Expanded(
-                                                                    child: Column(
-                                                                      crossAxisAlignment:
-                                                                          CrossAxisAlignment
-                                                                              .start,
-                                                                      children: [
-                                                                        const Text(
-                                                                          'Stok Saat Ini',
-                                                                          style: TextStyle(
-                                                                            fontSize:
-                                                                                11,
-                                                                            color: Color(
-                                                                              0xFF9CA3AF,
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                        Text(
-                                                                          '$availableAmount $unit',
-                                                                          style: const TextStyle(
-                                                                            fontSize:
-                                                                                12,
-                                                                            fontWeight:
-                                                                                FontWeight.w700,
-                                                                            color: Color(
-                                                                              0xFF1F2937,
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                      ],
-                                                                    ),
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 10,
-                                                        ),
-                                                        Container(
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 10,
-                                                                vertical: 6,
-                                                              ),
-                                                          decoration: BoxDecoration(
-                                                            color: _controller
-                                                                .getStatusColor(
-                                                                  ingredient,
-                                                                )
-                                                                .withOpacity(
-                                                                  0.15,
-                                                                ),
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  8,
-                                                                ),
-                                                            border: Border.all(
-                                                              color: _controller
-                                                                  .getStatusColor(
+                                            return Column(
+                                              children: [
+                                                Padding(
+                                                  padding: const EdgeInsets.all(
+                                                    14,
+                                                  ),
+                                                  child: Column(
+                                                    children: [
+                                                      Row(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Checkbox(
+                                                            value: isSelected,
+                                                            onChanged: (value) {
+                                                              _controller
+                                                                  .setIngredientSelection(
                                                                     ingredient,
-                                                                  )
+                                                                    value ??
+                                                                        false,
+                                                                  );
+                                                            },
+                                                            activeColor:
+                                                                const Color(
+                                                                  0xFFA89080,
+                                                                ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 4,
+                                                          ),
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  _controller
+                                                                      .cleanIngredientName(
+                                                                        ingredient,
+                                                                      ),
+                                                                  style: const TextStyle(
+                                                                    fontSize:
+                                                                        13,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                    color: Color(
+                                                                      0xFF1F2937,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  height: 6,
+                                                                ),
+                                                                Row(
+                                                                  children: [
+                                                                    Expanded(
+                                                                      child: Column(
+                                                                        crossAxisAlignment:
+                                                                            CrossAxisAlignment.start,
+                                                                        children: [
+                                                                          const Text(
+                                                                            'Kebutuhan',
+                                                                            style: TextStyle(
+                                                                              fontSize:
+                                                                                  11,
+                                                                              color: Color(
+                                                                                0xFF9CA3AF,
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                          Text(
+                                                                            '$neededAmount $unit',
+                                                                            style: const TextStyle(
+                                                                              fontSize:
+                                                                                  12,
+                                                                              fontWeight:
+                                                                                  FontWeight.w700,
+                                                                              color: Color(
+                                                                                0xFF1F2937,
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ],
+                                                                      ),
+                                                                    ),
+                                                                    Expanded(
+                                                                      child: Column(
+                                                                        crossAxisAlignment:
+                                                                            CrossAxisAlignment.start,
+                                                                        children: [
+                                                                          const Text(
+                                                                            'Stok Saat Ini',
+                                                                            style: TextStyle(
+                                                                              fontSize:
+                                                                                  11,
+                                                                              color: Color(
+                                                                                0xFF9CA3AF,
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                          Text(
+                                                                            '$availableAmount $unit',
+                                                                            style: const TextStyle(
+                                                                              fontSize:
+                                                                                  12,
+                                                                              fontWeight:
+                                                                                  FontWeight.w700,
+                                                                              color: Color(
+                                                                                0xFF1F2937,
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ],
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 10,
+                                                          ),
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      10,
+                                                                  vertical: 6,
+                                                                ),
+                                                            decoration: BoxDecoration(
+                                                              color: statusColor
                                                                   .withOpacity(
-                                                                    0.3,
+                                                                    0.15,
                                                                   ),
-                                                              width: 1,
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    8,
+                                                                  ),
+                                                              border: Border.all(
+                                                                color: statusColor
+                                                                    .withOpacity(
+                                                                      0.3,
+                                                                    ),
+                                                                width: 1,
+                                                              ),
+                                                            ),
+                                                            child: Text(
+                                                              statusLabel,
+                                                              style: TextStyle(
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                                color:
+                                                                    statusColor,
+                                                              ),
                                                             ),
                                                           ),
-                                                          child: Text(
-                                                            isSufficient
-                                                                ? 'Aman'
-                                                                : 'Kurang',
-                                                            style: TextStyle(
-                                                              fontSize: 11,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w700,
-                                                              color: _controller
-                                                                  .getStatusColor(
-                                                                    ingredient,
-                                                                  ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              if (!isLast)
-                                                Container(
-                                                  height: 1,
-                                                  color: const Color(
-                                                    0xFFF3F4F6,
+                                                        ],
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
-                                            ],
-                                          );
-                                        }).toList(),
+                                                if (!isLast)
+                                                  Container(
+                                                    height: 1,
+                                                    color: const Color(
+                                                      0xFFF3F4F6,
+                                                    ),
+                                                  ),
+                                              ],
+                                            );
+                                          }).toList(),
+                                    ),
                                   ),
-                                ),
                                 const SizedBox(height: 16),
                                 if (!_controller.isStockSufficient) ...[
                                   const Text(

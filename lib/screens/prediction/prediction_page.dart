@@ -26,6 +26,21 @@ class _PredictionScreenState extends State<PredictionScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
   }
 
+  Future<void> _submitProduction() async {
+    final result = await _controller.submitProduction();
+    if (!mounted) return;
+
+    if (result['status'] == 'success') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Stok berhasil diperbarui')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Gagal submit')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -368,7 +383,11 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                           child: ElevatedButton.icon(
                                             onPressed:
                                                 _controller.canCalculate
-                                                    ? _controller.calculate
+                                                    ? () async {
+                                                      await _controller
+                                                          .refreshStock();
+                                                      _controller.calculate();
+                                                    }
                                                     : null,
                                             icon: const Icon(
                                               Icons.calculate,
@@ -587,21 +606,29 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                 _controller.getIngredientUnit(
                                                   ingredient,
                                                 );
+                                            final stockUnit = _controller
+                                                .getStockUnit(ingredient);
                                             final quantityPerUnit =
                                                 (details['quantity'] as num)
-                                                    .toInt();
+                                                    .toDouble();
                                             final neededAmount =
                                                 isSelected
                                                     ? quantityPerUnit *
                                                         _controller
                                                             .productionQuantity
-                                                    : 0;
+                                                    : 0.0;
                                             final availableAmount =
                                                 _controller
                                                     .currentStock[ingredient] ??
-                                                0;
+                                                0.0;
+                                            final requiredInStockUnit =
+                                                _controller
+                                                    .getRequiredInStockUnit(
+                                                      ingredient,
+                                                    );
                                             final isSufficient =
-                                                availableAmount >= neededAmount;
+                                                availableAmount >=
+                                                requiredInStockUnit;
                                             final statusColor =
                                                 isSelected
                                                     ? (isSufficient
@@ -693,7 +720,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                                             ),
                                                                           ),
                                                                           Text(
-                                                                            '$neededAmount $unit',
+                                                                            '${_controller.formatQuantity(neededAmount)} $unit',
                                                                             style: const TextStyle(
                                                                               fontSize:
                                                                                   12,
@@ -723,7 +750,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                                             ),
                                                                           ),
                                                                           Text(
-                                                                            '$availableAmount $unit',
+                                                                            '${_controller.formatQuantity(availableAmount)} $stockUnit',
                                                                             style: const TextStyle(
                                                                               fontSize:
                                                                                   12,
@@ -799,6 +826,128 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                     ),
                                   ),
                                 const SizedBox(height: 16),
+                                if (_controller.roundedUsage.isNotEmpty) ...[
+                                  const Text(
+                                    'Ringkasan Pengurangan Stok',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1F2937),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      children:
+                                          _controller.roundedUsage.entries.map((
+                                            entry,
+                                          ) {
+                                            final ingredient = entry.key;
+                                            final amount = entry.value;
+                                            final stockUnit = _controller
+                                                .getStockUnit(ingredient);
+                                            return Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 6,
+                                                  ),
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      _controller
+                                                          .cleanIngredientName(
+                                                            ingredient,
+                                                          ),
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Color(
+                                                          0xFF1F2937,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '-${_controller.formatQuantity(amount)} $stockUnit',
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFFDC2626),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }).toList(),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed:
+                                          _controller.isSubmitting
+                                              ? null
+                                              : _submitProduction,
+                                      icon:
+                                          _controller.isSubmitting
+                                              ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                        Color
+                                                      >(Colors.white),
+                                                ),
+                                              )
+                                              : const Icon(Icons.check_circle),
+                                      label: Text(
+                                        _controller.isSubmitting
+                                            ? 'Memproses...'
+                                            : 'Submit Produksi',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF10B981,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
                                 if (!_controller.isStockSufficient) ...[
                                   const Text(
                                     'Rekomendasi Penambahan Stok',
@@ -833,7 +982,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                             final ingredient = entry.key;
                                             final deficitAmount = entry.value;
                                             final unit = _controller
-                                                .getIngredientUnit(ingredient);
+                                                .getStockUnit(ingredient);
 
                                             return Padding(
                                               padding:
@@ -877,7 +1026,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                           ),
                                                     ),
                                                     child: Text(
-                                                      '+$deficitAmount $unit',
+                                                      '+${_controller.formatQuantity(deficitAmount)} $unit',
                                                       style: const TextStyle(
                                                         fontSize: 12,
                                                         fontWeight:

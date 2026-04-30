@@ -5,7 +5,7 @@ class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://192.168.1.62:5000  ';
+  static const String baseUrl = 'http://192.168.1.62:5000';
 
   static const int timeoutSeconds = 30;
 
@@ -188,6 +188,42 @@ class MLService {
   // ========================================================================
   // DATABASE ENDPOINTS - PRODUCTS & TRANSACTIONS
   // ========================================================================
+
+  /// Consume stock (batch) after production
+  static Future<Map<String, dynamic>> consumeStock({
+    required List<Map<String, dynamic>> items,
+    String? recipeName,
+    int? productionQuantity,
+  }) async {
+    try {
+      final data = {
+        'items': items,
+        if (recipeName != null) 'recipe_name': recipeName,
+        if (productionQuantity != null)
+          'production_quantity': productionQuantity,
+      };
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/stock/consume'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(data),
+          )
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {
+          'status': 'error',
+          'message': 'Server error: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('Consume stock error: $e');
+      return {'status': 'error', 'message': 'Connection error: $e'};
+    }
+  }
 
   /// Get all products from database
   static Future<List<Map<String, dynamic>>> getProducts() async {

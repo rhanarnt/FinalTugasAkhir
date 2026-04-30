@@ -42,6 +42,22 @@ CREATE TABLE IF NOT EXISTS products (
   KEY idx_category (category)
 );
 
+-- 4. TABLE: stock_usage_history
+-- Menyimpan riwayat pemakaian stok saat produksi
+CREATE TABLE IF NOT EXISTS stock_usage_history (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  recipe_name VARCHAR(100),
+  production_quantity INT,
+  product_id INT NOT NULL,
+  product_name VARCHAR(100) NOT NULL,
+  quantity_used FLOAT NOT NULL,
+  unit VARCHAR(20),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+  KEY idx_product_id (product_id),
+  KEY idx_recipe_name (recipe_name)
+);
+
 -- =====================================================
 -- INSERT DATA: RESEP
 -- =====================================================

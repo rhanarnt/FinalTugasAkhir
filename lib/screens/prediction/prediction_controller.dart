@@ -202,7 +202,15 @@ class PredictionController extends ChangeNotifier {
   String getStockUnit(String ingredient) {
     final unit = productUnits[ingredient];
     if (unit != null && unit.isNotEmpty) return unit;
-    return getIngredientUnit(ingredient);
+    return 'kg';
+  }
+
+  double toGram({required double amount, required String unit}) {
+    final normalized = unit.toLowerCase();
+    if (normalized == 'gr') return amount;
+    if (normalized == 'kg') return amount * 1000;
+    if (normalized == 'butir') return amount * eggGramPerButir;
+    return amount;
   }
 
   double getRequiredInStockUnit(String ingredient) {
@@ -269,23 +277,9 @@ class PredictionController extends ChangeNotifier {
     return amount;
   }
 
-  double _applyRoundingForStock(double amountInStockUnit, String stockUnit) {
-    final unit = stockUnit.toLowerCase();
-    if (unit != 'kg' && unit != 'gr') return amountInStockUnit;
-
-    final grams = unit == 'kg' ? amountInStockUnit * 1000 : amountInStockUnit;
+  double _roundRequiredGramToKg(double grams) {
     if (grams <= 0) return 0;
-
-    double roundedKg;
-    if (grams < 500) {
-      roundedKg = 0.5;
-    } else if (grams <= 1000) {
-      roundedKg = 1.0;
-    } else {
-      roundedKg = (grams / 1000).ceilToDouble();
-    }
-
-    return unit == 'kg' ? roundedKg : roundedKg * 1000;
+    return MLService.gramsToKgRounded(grams);
   }
 
   Map<String, double> get roundedUsage {
@@ -294,52 +288,55 @@ class PredictionController extends ChangeNotifier {
 
     required.forEach((ingredient, neededAmount) {
       if (!isIngredientSelected(ingredient)) return;
-      final stockUnit = getStockUnit(ingredient);
-      final requiredInStockUnit = _convertToStockUnit(
-        ingredient: ingredient,
-        amount: neededAmount,
-        fromUnit: getIngredientUnit(ingredient),
-      );
-      rounded[ingredient] = _applyRoundingForStock(
-        requiredInStockUnit,
-        stockUnit,
-      );
+      final unit = getIngredientUnit(ingredient);
+      final requiredGram = toGram(amount: neededAmount, unit: unit);
+      rounded[ingredient] = _roundRequiredGramToKg(requiredGram);
     });
 
     return rounded;
   }
 
   Future<Map<String, dynamic>> submitProduction() async {
-    if (selectedRecipe == null || !isCalculated) {
-      return {'status': 'error', 'message': 'Hitung kebutuhan terlebih dahulu'};
-    }
-
-    await refreshStock();
-    if (insufficientStock.isNotEmpty) {
+    if (isSubmitting) {
       return {
         'status': 'error',
-        'message': 'Stok masih kurang, silakan update stok dulu',
+        'message': 'Permintaan sedang diproses, mohon tunggu',
       };
-    }
-
-    final rounded = roundedUsage;
-    if (rounded.isEmpty) {
-      return {'status': 'error', 'message': 'Tidak ada bahan yang dipilih'};
     }
 
     isSubmitting = true;
     notifyListeners();
 
     try {
+      if (selectedRecipe == null || !isCalculated) {
+        return {
+          'status': 'error',
+          'message': 'Hitung kebutuhan terlebih dahulu',
+        };
+      }
+
+      await refreshStock();
+      if (insufficientStock.isNotEmpty) {
+        return {
+          'status': 'error',
+          'message': 'Stok masih kurang, silakan update stok dulu',
+        };
+      }
+
+      final rounded = roundedUsage;
+      if (rounded.isEmpty) {
+        return {'status': 'error', 'message': 'Tidak ada bahan yang dipilih'};
+      }
+
       final items =
-          rounded.entries.map((entry) {
+          rounded.entries.where((entry) => entry.value > 0).map((entry) {
             final ingredient = entry.key;
-            final quantity = entry.value;
+            final quantityKg = entry.value;
             return {
               'product_id': productIds[ingredient],
               'product_name': ingredient,
-              'quantity': quantity,
-              'unit': getStockUnit(ingredient),
+              'quantity': quantityKg,
+              'unit': 'kg',
             };
           }).toList();
 
@@ -359,6 +356,7 @@ class PredictionController extends ChangeNotifier {
             double.infinity,
           );
         }
+        await refreshStock();
       }
 
       return result;

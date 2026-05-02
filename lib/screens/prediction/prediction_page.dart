@@ -27,6 +27,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
   }
 
   Future<void> _submitProduction() async {
+    if (_controller.isSubmitting) return;
     final result = await _controller.submitProduction();
     if (!mounted) return;
 
@@ -606,8 +607,6 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                 _controller.getIngredientUnit(
                                                   ingredient,
                                                 );
-                                            final stockUnit = _controller
-                                                .getStockUnit(ingredient);
                                             final quantityPerUnit =
                                                 (details['quantity'] as num)
                                                     .toDouble();
@@ -617,18 +616,24 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                         _controller
                                                             .productionQuantity
                                                     : 0.0;
-                                            final availableAmount =
+                                            final stockKg =
                                                 _controller
                                                     .currentStock[ingredient] ??
                                                 0.0;
+                                            final requiredGram =
+                                                isSelected
+                                                    ? _controller.toGram(
+                                                      amount: neededAmount,
+                                                      unit: unit,
+                                                    )
+                                                    : 0.0;
                                             final requiredInStockUnit =
                                                 _controller
                                                     .getRequiredInStockUnit(
                                                       ingredient,
                                                     );
                                             final isSufficient =
-                                                availableAmount >=
-                                                requiredInStockUnit;
+                                                stockKg >= requiredInStockUnit;
                                             final statusColor =
                                                 isSelected
                                                     ? (isSufficient
@@ -720,7 +725,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                                             ),
                                                                           ),
                                                                           Text(
-                                                                            '${_controller.formatQuantity(neededAmount)} $unit',
+                                                                            '${_controller.formatQuantity(requiredGram)} gr',
                                                                             style: const TextStyle(
                                                                               fontSize:
                                                                                   12,
@@ -750,7 +755,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                                             ),
                                                                           ),
                                                                           Text(
-                                                                            '${_controller.formatQuantity(availableAmount)} $stockUnit',
+                                                                            '${_controller.formatQuantity(stockKg)} kg',
                                                                             style: const TextStyle(
                                                                               fontSize:
                                                                                   12,

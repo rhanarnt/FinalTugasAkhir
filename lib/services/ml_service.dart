@@ -5,9 +5,22 @@ class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://192.168.1.62:5000';
+  static const String baseUrl = 'http://192.168.1.12:5000';
 
   static const int timeoutSeconds = 30;
+
+  /// Convert grams to kilograms with rounding rules:
+  /// - <= 500g -> 0.5kg
+  /// - 500g < g <= 1000g -> 1kg
+  /// - > 1000g -> round up to nearest 0.5kg
+  static double gramsToKgRounded(num grams) {
+    if (grams <= 0) {
+      throw ArgumentError('grams must be greater than 0');
+    }
+    if (grams <= 500) return 0.5;
+    if (grams <= 1000) return 1.0;
+    return (grams / 500).ceilToDouble() * 0.5;
+  }
 
   /// Health Check - Test if API is running
   static Future<bool> healthCheck() async {
@@ -203,6 +216,8 @@ class MLService {
           'production_quantity': productionQuantity,
       };
 
+      print('[consumeStock] Request payload: ${jsonEncode(data)}');
+
       final response = await http
           .post(
             Uri.parse('$baseUrl/stock/consume'),
@@ -210,6 +225,9 @@ class MLService {
             body: jsonEncode(data),
           )
           .timeout(Duration(seconds: timeoutSeconds));
+
+      print('[consumeStock] Response status: ${response.statusCode}');
+      print('[consumeStock] Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);

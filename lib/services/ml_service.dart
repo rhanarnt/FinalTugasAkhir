@@ -5,7 +5,7 @@ class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://192.168.1.12:5000';
+  static const String baseUrl = 'http://10.103.65.129:5000';
 
   static const int timeoutSeconds = 30;
 
@@ -229,14 +229,23 @@ class MLService {
       print('[consumeStock] Response status: ${response.statusCode}');
       print('[consumeStock] Response body: ${response.body}');
 
+      final parsedBody =
+          response.body.isNotEmpty ? jsonDecode(response.body) : null;
+
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        return {
-          'status': 'error',
-          'message': 'Server error: ${response.statusCode}',
-        };
+        return parsedBody is Map<String, dynamic>
+            ? parsedBody
+            : {'status': 'success'};
       }
+
+      if (parsedBody is Map<String, dynamic>) {
+        return parsedBody;
+      }
+
+      return {
+        'status': 'error',
+        'message': 'Server error: ${response.statusCode}',
+      };
     } catch (e) {
       print('Consume stock error: $e');
       return {'status': 'error', 'message': 'Connection error: $e'};

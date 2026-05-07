@@ -8,6 +8,7 @@ import 'package:finalproject/screens/transaction/transaction_page.dart';
 import 'package:finalproject/screens/products/product_list_page.dart';
 import 'package:finalproject/screens/reports/report_page.dart';
 import 'package:finalproject/screens/settings/settings_page.dart';
+import 'package:finalproject/utils/route_observer.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,7 +23,8 @@ class MyApp extends StatelessWidget {
       title: 'Prediksi Stok Bahan Kue',
       theme: AppTheme.lightTheme(),
       debugShowCheckedModeBanner: false,
-      initialRoute: '/login',
+      navigatorObservers: [routeObserver],
+      initialRoute: '/splash',
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),

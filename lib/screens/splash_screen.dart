@@ -64,16 +64,16 @@ class _SplashScreenState extends State<SplashScreen>
       await Future.delayed(const Duration(seconds: 1));
 
       if (mounted) {
-        // Navigate ke Dashboard
-        Navigator.of(context).pushReplacementNamed('/dashboard');
+        // Navigate ke Login
+        Navigator.of(context).pushReplacementNamed('/login');
       }
     } catch (e) {
       setState(() => _statusMessage = 'Error: ${e.toString()}');
       await Future.delayed(const Duration(seconds: 2));
 
       if (mounted) {
-        // Navigate ke Dashboard even on error
-        Navigator.of(context).pushReplacementNamed('/dashboard');
+        // Navigate ke Login even on error
+        Navigator.of(context).pushReplacementNamed('/login');
       }
     }
   }
@@ -166,8 +166,10 @@ class _SplashScreenState extends State<SplashScreen>
 
                           // App name with fade-in
                           FadeTransition(
-                            opacity: Tween<double>(begin: 0.0, end: 1.0)
-                                .animate(
+                            opacity: Tween<double>(
+                              begin: 0.0,
+                              end: 1.0,
+                            ).animate(
                               CurvedAnimation(
                                 parent: _fadeController,
                                 curve: Curves.easeInOut,
@@ -237,8 +239,10 @@ class _SplashScreenState extends State<SplashScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             ScaleTransition(
-                              scale: Tween<double>(begin: 0.4, end: 1.0)
-                                  .animate(
+                              scale: Tween<double>(
+                                begin: 0.4,
+                                end: 1.0,
+                              ).animate(
                                 CurvedAnimation(
                                   parent: _rotateController,
                                   curve: Curves.easeInOut,
@@ -255,8 +259,10 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                             const SizedBox(width: 6),
                             ScaleTransition(
-                              scale: Tween<double>(begin: 0.4, end: 1.0)
-                                  .animate(
+                              scale: Tween<double>(
+                                begin: 0.4,
+                                end: 1.0,
+                              ).animate(
                                 CurvedAnimation(
                                   parent: _rotateController,
                                   curve: Curves.easeInOut,
@@ -273,8 +279,10 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                             const SizedBox(width: 6),
                             ScaleTransition(
-                              scale: Tween<double>(begin: 0.4, end: 1.0)
-                                  .animate(
+                              scale: Tween<double>(
+                                begin: 0.4,
+                                end: 1.0,
+                              ).animate(
                                 CurvedAnimation(
                                   parent: _rotateController,
                                   curve: Curves.easeInOut,

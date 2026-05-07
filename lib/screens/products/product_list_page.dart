@@ -1,6 +1,7 @@
 import 'package:finalproject/models/product_model.dart';
 import 'package:finalproject/theme/colors.dart';
 import 'package:finalproject/theme/text_styles.dart';
+import 'package:finalproject/utils/route_observer.dart';
 import 'package:flutter/material.dart';
 
 import 'product_list_controller.dart';
@@ -12,7 +13,7 @@ class ProductListScreen extends StatefulWidget {
   State<ProductListScreen> createState() => _ProductListScreenState();
 }
 
-class _ProductListScreenState extends State<ProductListScreen> {
+class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
   late final ProductListController _controller;
 
   @override
@@ -28,6 +29,20 @@ class _ProductListScreenState extends State<ProductListScreen> {
         ),
       );
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    _controller.loadProducts();
   }
 
   @override
@@ -546,6 +561,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _controller.dispose();
     super.dispose();
   }

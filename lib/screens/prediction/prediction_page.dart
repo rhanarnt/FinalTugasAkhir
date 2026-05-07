@@ -11,6 +11,7 @@ class PredictionScreen extends StatefulWidget {
 
 class _PredictionScreenState extends State<PredictionScreen> {
   late final PredictionController _controller;
+  final TextEditingController _productionController = TextEditingController();
 
   @override
   void initState() {
@@ -32,9 +33,94 @@ class _PredictionScreenState extends State<PredictionScreen> {
     if (!mounted) return;
 
     if (result['status'] == 'success') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Stok berhasil diperbarui')),
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: Color(0xFF10B981),
+                      size: 36,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Produksi Berhasil',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Stok bahan sudah diperbarui sesuai produksi.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFA89080),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Sukses',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       );
+      await _controller.refreshStock();
+      _controller.reset();
+      _productionController.clear();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message'] ?? 'Gagal submit')),
@@ -341,6 +427,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                         ),
                                         const SizedBox(height: 8),
                                         TextField(
+                                          controller: _productionController,
                                           keyboardType: TextInputType.number,
                                           onChanged:
                                               _controller.setProductionQuantity,
@@ -419,7 +506,10 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                         ),
                                         const SizedBox(width: 10),
                                         OutlinedButton(
-                                          onPressed: _controller.reset,
+                                          onPressed: () {
+                                            _controller.reset();
+                                            _productionController.clear();
+                                          },
                                           style: OutlinedButton.styleFrom(
                                             side: const BorderSide(
                                               color: Color(0xFFE5E7EB),
@@ -1151,6 +1241,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
 
   @override
   void dispose() {
+    _productionController.dispose();
     _controller.dispose();
     super.dispose();
   }

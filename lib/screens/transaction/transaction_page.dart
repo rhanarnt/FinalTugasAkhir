@@ -71,7 +71,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '⚠️ $successCount/$totalCount Stock In berhasil. Error: $firstError',
+            '⚠️ $successCount/$totalCount Stok Masuk berhasil. Error: $firstError',
           ),
           backgroundColor: AppColors.statusError,
         ),
@@ -80,7 +80,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '✅ $successCount Stock In berhasil disimpan dan stok terupdate!',
+            '✅ $successCount Stok Masuk berhasil disimpan dan stok terupdate!',
           ),
           backgroundColor: AppColors.statusSuccess,
         ),
@@ -446,7 +446,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
             backgroundColor: AppColors.primaryBrown,
             elevation: 0,
             title: Text(
-              ' Stock In',
+              ' Stok Masuk',
               style: AppTextStyles.headlineLarge.copyWith(color: Colors.white),
             ),
             leading: IconButton(
@@ -765,7 +765,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Tanggal Stock In',
+                            'Tanggal Stok Masuk',
                             style: AppTextStyles.labelLarge.copyWith(
                               color: AppColors.textPrimary,
                             ),
@@ -846,7 +846,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                               label: Text(
                                 _controller.isLoading
                                     ? 'Menyimpan...'
-                                    : 'Simpan Stock In',
+                                    : 'Simpan Stok Masuk',
                                 style: AppTextStyles.labelLarge,
                               ),
                             ),
@@ -857,7 +857,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     const SizedBox(height: 24),
                   ],
                   Text(
-                    'Riwayat Stock In (${_controller.transactions.length})',
+                    'Riwayat Stok Masuk (${_controller.transactions.length})',
                     style: AppTextStyles.headlineSmall.copyWith(
                       color: AppColors.textPrimary,
                     ),
@@ -876,7 +876,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Belum ada Stock In',
+                              'Belum ada Stok Masuk',
                               style: AppTextStyles.bodyMedium.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -987,7 +987,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.shopping_cart_outlined),
-                label: 'Stock In',
+                label: 'Stok Masuk',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.trending_up_outlined),

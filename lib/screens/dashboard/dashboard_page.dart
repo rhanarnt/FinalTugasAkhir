@@ -372,10 +372,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.of(context).pushNamed('/transaction');
+                              },
                               icon: const Icon(Icons.check_circle, size: 20),
                               label: const Text(
-                                'Rekomendasi Stok',
+                                'Tambah Stok',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -440,7 +442,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.shopping_cart_outlined),
-                label: 'Stock In',
+                label: 'Stok Masuk',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.trending_up_outlined),

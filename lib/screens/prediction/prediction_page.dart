@@ -1218,7 +1218,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.shopping_cart_outlined),
-                label: 'Stock In',
+                label: 'Stok Masuk',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.trending_up_outlined),

@@ -338,7 +338,7 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.shopping_cart_outlined),
-                label: 'Stock In',
+                label: 'Stok Masuk',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.trending_up_outlined),

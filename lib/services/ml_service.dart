@@ -5,7 +5,7 @@ class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://192.168.18.30:5000';
+  static const String baseUrl = 'http://192.168.1.91:5000';
 
   static const int timeoutSeconds = 30;
 
@@ -196,6 +196,51 @@ class MLService {
     } catch (e) {
       return {'status': 'error', 'message': 'Connection error: $e'};
     }
+  }
+
+  // ========================================================================
+  // REPORT ENDPOINTS - LAPORAN
+  // ========================================================================
+
+  /// Helper GET untuk endpoint laporan (response: {status, message, data})
+  static Future<Map<String, dynamic>> _getReport(String path) async {
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl$path'))
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+
+      return {
+        'status': false,
+        'message': 'Server error: ${response.statusCode}',
+        'data': [],
+      };
+    } catch (e) {
+      return {'status': false, 'message': 'Connection error: $e', 'data': []};
+    }
+  }
+
+  /// Laporan stok bahan
+  static Future<Map<String, dynamic>> getReportStock() async {
+    return _getReport('/laporan/stok');
+  }
+
+  /// Riwayat stok masuk
+  static Future<Map<String, dynamic>> getReportStockIn() async {
+    return _getReport('/laporan/stok-masuk');
+  }
+
+  /// Laporan prediksi permintaan
+  static Future<Map<String, dynamic>> getReportPredictions() async {
+    return _getReport('/laporan/prediksi');
+  }
+
+  /// Laporan bahan kritis
+  static Future<Map<String, dynamic>> getReportCritical() async {
+    return _getReport('/laporan/bahan-kritis');
   }
 
   // ========================================================================

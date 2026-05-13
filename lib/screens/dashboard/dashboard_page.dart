@@ -1,5 +1,6 @@
 import 'package:finalproject/theme/colors.dart';
 import 'package:finalproject/theme/text_styles.dart';
+import 'package:finalproject/utils/route_observer.dart';
 import 'package:flutter/material.dart';
 
 import 'dashboard_controller.dart';
@@ -11,24 +12,41 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with RouteAware {
   late final DashboardController _controller;
 
   @override
   void initState() {
     super.initState();
     _controller = DashboardController();
+    _controller.loadDashboard();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    _controller.loadDashboard(showLoading: false);
   }
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    final headerHeight = 240 + topPadding;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
         return Scaffold(
           backgroundColor: AppColors.bgLight,
           appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(240),
+            preferredSize: Size.fromHeight(headerHeight),
             child: Container(
               decoration: BoxDecoration(
                 color: AppColors.primaryBrown,
@@ -57,7 +75,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     width: 40,
                                     height: 40,
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: IconButton(
@@ -136,18 +156,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           Expanded(
                             child: _buildStatCard(
-                              title: 'Total Penjualan',
-                              value: 'Rp 67 Jt',
-                              change: '+12.5%',
-                              icon: Icons.trending_up,
+                              title: 'Bahan Digunakan Hari Ini',
+                              value:
+                                  '${_formatNumber(_controller.totalBahanDigunakanHariIni)} ${_controller.bahanDigunakanSatuan}',
+                              change: _controller.bahanDigunakanKeterangan,
+                              icon: Icons.inventory_2_outlined,
                               iconBgColor: AppColors.statusSuccess,
+                              isLoading: _controller.isBahanDigunakanLoading,
+                              hasError: _controller.bahanDigunakanError != null,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildStatCard(
                               title: 'Produk',
-                              value: '24',
+                              value: _controller.totalProduk.toString(),
                               change: 'Aktif',
                               icon: Icons.shopping_bag,
                               iconBgColor: AppColors.secondaryBlue,
@@ -187,7 +210,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Grafik Penjualan',
+                                      'Penggunaan Bahan',
                                       style: AppTextStyles.headlineSmall
                                           .copyWith(
                                             color: AppColors.textPrimary,
@@ -195,7 +218,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '6 Bulan Terakhir',
+                                      'Top 5 bahan paling sering digunakan',
                                       style: AppTextStyles.bodySmall.copyWith(
                                         color: AppColors.textTertiary,
                                       ),
@@ -203,57 +226,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ],
                                 ),
                                 Icon(
-                                  Icons.trending_up,
-                                  color: AppColors.statusSuccess,
+                                  Icons.bar_chart_rounded,
+                                  color: AppColors.secondaryBlue,
                                   size: 20,
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
-                            SizedBox(
-                              height: 200,
-                              child: Column(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ...[
-                                    '80000000',
-                                    '60000000',
-                                    '40000000',
-                                    '20000000',
-                                    '0',
-                                  ].map((label) {
-                                    return Text(
-                                      label,
-                                      style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.grey300,
-                                      ),
-                                    );
-                                  }).toList(),
-                                ],
+                            const SizedBox(height: 16),
+                            if (_controller.isLoading)
+                              const Center(child: CircularProgressIndicator())
+                            else
+                              Column(
+                                children:
+                                    _controller.penggunaanBahan.map((item) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
+                                        child: _buildUsageRow(item),
+                                      );
+                                    }).toList(),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children:
-                                  [
-                                    'Jan',
-                                    'Feb',
-                                    'Mar',
-                                    'Apr',
-                                    'Mei',
-                                    'Jun',
-                                  ].map((month) {
-                                    return Text(
-                                      month,
-                                      style: AppTextStyles.labelSmall.copyWith(
-                                        color: AppColors.textTertiary,
-                                      ),
-                                    );
-                                  }).toList(),
-                            ),
                           ],
                         ),
                       ),
@@ -336,7 +329,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ],
                                 ),
                               );
-                            }).toList(),
+                            }),
                           ],
                         ),
                       ),
@@ -469,9 +462,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String change,
     required IconData icon,
     required Color iconBgColor,
+    bool isLoading = false,
+    bool hasError = false,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      constraints: const BoxConstraints(minHeight: 120),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.bgWhite,
         borderRadius: BorderRadius.circular(14),
@@ -490,38 +486,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Text(
                       title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textTertiary,
                         fontWeight: FontWeight.w500,
+                        fontSize: 11,
+                        height: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      value,
-                      style: AppTextStyles.titleLarge.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
+                    const SizedBox(height: 4),
+                    if (isLoading)
+                      const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.4),
+                      )
+                    else
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          value,
+                          maxLines: 1,
+                          style: AppTextStyles.titleLarge.copyWith(
+                            color:
+                                hasError
+                                    ? AppColors.textSecondary
+                                    : AppColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                            height: 1.1,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       change,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.bodySmall.copyWith(
                         color:
-                            change.contains('+')
-                                ? AppColors.statusSuccess
+                            hasError
+                                ? AppColors.statusError
                                 : AppColors.textTertiary,
                         fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                        height: 1.2,
                       ),
                     ),
                   ],
                 ),
               ),
               Container(
-                width: 44,
-                height: 44,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: iconBgColor.withOpacity(0.15),
+                  color: iconBgColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(child: Icon(icon, color: iconBgColor, size: 22)),
@@ -533,8 +554,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  String _formatNumber(num value) {
+    if (value % 1 == 0) {
+      return value.toInt().toString();
+    }
+
+    return value.toStringAsFixed(1);
+  }
+
+  Widget _buildUsageRow(Map<String, dynamic> item) {
+    final total = (item['total'] as num?)?.toDouble() ?? 0.0;
+    final unit = item['unit']?.toString() ?? 'kg';
+    final max = _controller.penggunaanBahan.fold<double>(
+      0,
+      (value, element) =>
+          (((element['total'] as num?)?.toDouble() ?? 0.0) > value)
+              ? (element['total'] as num?)!.toDouble()
+              : value,
+    );
+    final progress = max == 0 ? 0.0 : total / max;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                item['name']?.toString() ?? '-',
+                style: AppTextStyles.labelLarge.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              '${total.toStringAsFixed(0)} $unit',
+              style: AppTextStyles.labelSmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 8,
+            backgroundColor: AppColors.grey200,
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondaryBlue),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _controller.dispose();
     super.dispose();
   }

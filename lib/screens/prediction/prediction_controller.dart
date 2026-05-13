@@ -179,7 +179,7 @@ class PredictionController extends ChangeNotifier {
         amount: neededAmount,
         fromUnit: getIngredientUnit(ingredient),
       );
-      final available = currentStock[ingredient] ?? 0;
+      final available = getCurrentStock(ingredient);
       if (available < requiredInStockUnit) {
         insufficient[ingredient] = requiredInStockUnit - available;
       }
@@ -200,15 +200,28 @@ class PredictionController extends ChangeNotifier {
   }
 
   String getStockUnit(String ingredient) {
-    final unit = productUnits[ingredient];
-    if (unit != null && unit.isNotEmpty) return unit;
+    final key = _matchingProductName(ingredient);
+    final unit = key == null ? productUnits[ingredient] : productUnits[key];
+    if (unit != null && unit.isNotEmpty) return _normalizeUnit(unit);
     return 'kg';
   }
 
+  double getCurrentStock(String ingredient) {
+    final key = _matchingProductName(ingredient);
+    return key == null ? currentStock[ingredient] ?? 0 : currentStock[key] ?? 0;
+  }
+
+  int? getProductId(String ingredient) {
+    final key = _matchingProductName(ingredient);
+    return key == null ? productIds[ingredient] : productIds[key];
+  }
+
   double toGram({required double amount, required String unit}) {
-    final normalized = unit.toLowerCase();
+    final normalized = _normalizeUnit(unit);
     if (normalized == 'gr') return amount;
     if (normalized == 'kg') return amount * 1000;
+    if (normalized == 'ml') return amount;
+    if (normalized == 'l') return amount * 1000;
     if (normalized == 'butir') return amount * eggGramPerButir;
     return amount;
   }
@@ -228,14 +241,22 @@ class PredictionController extends ChangeNotifier {
       amount: requiredIngredients[ingredient] ?? 0,
       fromUnit: getIngredientUnit(ingredient),
     );
-    final available = currentStock[ingredient] ?? 0;
+    final available = getCurrentStock(ingredient);
     return available >= required
         ? const Color(0xFF10B981)
         : const Color(0xFFDC2626);
   }
 
   String cleanIngredientName(String ingredient) {
-    return ingredient.replaceAll(RegExp(r' \d+(kg|gr)'), '').trim();
+    return ingredient
+        .replaceAll(
+          RegExp(
+            r'\s+\d+([,.]\d+)?\s*(kg|kilogram|g|gr|gram|ml|l|liter|ltr|butir|pcs)\b',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .trim();
   }
 
   String formatQuantity(double value) {
@@ -248,13 +269,38 @@ class PredictionController extends ChangeNotifier {
         .replaceAll(RegExp(r'\.$'), '');
   }
 
+  String formatStockQuantity(String ingredient, double value) {
+    final unit = getStockUnit(ingredient);
+    if (unit == 'kg' && value > 0 && value < 1) {
+      return '${formatQuantity(value * 1000)} gr';
+    }
+    if (unit == 'l' && value > 0 && value < 1) {
+      return '${formatQuantity(value * 1000)} ml';
+    }
+    return '${formatQuantity(value)} $unit';
+  }
+
+  String _normalizeUnit(String unit) {
+    final normalized = unit.trim().toLowerCase();
+    if (['g', 'gr', 'gram', 'grams'].contains(normalized)) return 'gr';
+    if (['kg', 'kilogram', 'kilograms'].contains(normalized)) return 'kg';
+    if (['ml', 'mili', 'mililiter', 'milliliter'].contains(normalized)) {
+      return 'ml';
+    }
+    if (['l', 'lt', 'ltr', 'liter', 'litre'].contains(normalized)) return 'l';
+    if (['butir', 'pcs', 'piece', 'pieces'].contains(normalized)) {
+      return 'butir';
+    }
+    return normalized;
+  }
+
   double _convertToStockUnit({
     required String ingredient,
     required double amount,
     required String fromUnit,
   }) {
-    final stockUnit = getStockUnit(ingredient).toLowerCase();
-    final unit = fromUnit.toLowerCase();
+    final stockUnit = _normalizeUnit(getStockUnit(ingredient));
+    final unit = _normalizeUnit(fromUnit);
 
     if (unit == stockUnit) return amount;
 
@@ -267,6 +313,14 @@ class PredictionController extends ChangeNotifier {
     if (unit == 'butir' && stockUnit == 'gr') {
       return amount * eggGramPerButir;
     }
+    if (unit == 'ml' && stockUnit == 'kg') return amount / 1000;
+    if (unit == 'l' && stockUnit == 'kg') return amount;
+    if (unit == 'kg' && stockUnit == 'ml') return amount * 1000;
+    if (unit == 'kg' && stockUnit == 'l') return amount;
+    if (unit == 'ml' && stockUnit == 'gr') return amount;
+    if (unit == 'gr' && stockUnit == 'ml') return amount;
+    if (unit == 'l' && stockUnit == 'ml') return amount * 1000;
+    if (unit == 'ml' && stockUnit == 'l') return amount / 1000;
     if (unit == 'kg' && stockUnit == 'butir') {
       return (amount * 1000) / eggGramPerButir;
     }
@@ -277,23 +331,52 @@ class PredictionController extends ChangeNotifier {
     return amount;
   }
 
-  double _roundRequiredGramToKg(double grams) {
-    if (grams <= 0) return 0;
-    return MLService.gramsToKgRounded(grams);
+  String _ingredientKey(String value) {
+    return cleanIngredientName(
+      value,
+    ).toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
   }
 
-  Map<String, double> get roundedUsage {
+  String? _matchingProductName(String ingredient) {
+    if (currentStock.containsKey(ingredient)) return ingredient;
+
+    final target = _ingredientKey(ingredient);
+    for (final name in currentStock.keys) {
+      if (_ingredientKey(name) == target) return name;
+    }
+
+    return null;
+  }
+
+  Map<String, double> get stockUsage {
     final required = requiredIngredients;
-    final rounded = <String, double>{};
+    final usage = <String, double>{};
 
     required.forEach((ingredient, neededAmount) {
       if (!isIngredientSelected(ingredient)) return;
       final unit = getIngredientUnit(ingredient);
-      final requiredGram = toGram(amount: neededAmount, unit: unit);
-      rounded[ingredient] = _roundRequiredGramToKg(requiredGram);
+      usage[ingredient] = _convertToStockUnit(
+        ingredient: ingredient,
+        amount: neededAmount,
+        fromUnit: unit,
+      );
     });
 
-    return rounded;
+    return usage;
+  }
+
+  String buildEstimatedNeedsText() {
+    final usage = stockUsage;
+    if (usage.isEmpty) return 'Belum tersedia';
+
+    return usage.entries
+        .where((entry) => entry.value > 0)
+        .map((entry) {
+          final name = cleanIngredientName(entry.key);
+          final amount = formatStockQuantity(entry.key, entry.value);
+          return '$name: $amount';
+        })
+        .join(', ');
   }
 
   Future<Map<String, dynamic>> submitProduction() async {
@@ -323,20 +406,20 @@ class PredictionController extends ChangeNotifier {
         };
       }
 
-      final rounded = roundedUsage;
-      if (rounded.isEmpty) {
+      final usage = stockUsage;
+      if (usage.isEmpty) {
         return {'status': 'error', 'message': 'Tidak ada bahan yang dipilih'};
       }
 
       final items =
-          rounded.entries.where((entry) => entry.value > 0).map((entry) {
+          usage.entries.where((entry) => entry.value > 0).map((entry) {
             final ingredient = entry.key;
-            final quantityKg = entry.value;
+            final quantity = entry.value;
             return {
-              'product_id': productIds[ingredient],
+              'product_id': getProductId(ingredient),
               'product_name': ingredient,
-              'quantity': quantityKg,
-              'unit': 'kg',
+              'quantity': quantity,
+              'unit': getStockUnit(ingredient),
             };
           }).toList();
 
@@ -347,14 +430,22 @@ class PredictionController extends ChangeNotifier {
       );
 
       if (result['status'] == 'success') {
-        for (final entry in rounded.entries) {
+        // Simpan hasil prediksi ke database agar laporan total prediksi ter-update.
+        await MLService.savePrediction(
+          productName: selectedRecipe ?? 'Produk',
+          category: 'Produk',
+          unitPrice: 0,
+          predictionDate: DateTime.now().toIso8601String().split('T').first,
+          predictedQuantity: productionQuantity,
+          estimatedNeeds: buildEstimatedNeedsText(),
+        );
+
+        for (final entry in usage.entries) {
           final ingredient = entry.key;
           final quantity = entry.value;
-          final available = currentStock[ingredient] ?? 0;
-          currentStock[ingredient] = (available - quantity).clamp(
-            0,
-            double.infinity,
-          );
+          final key = _matchingProductName(ingredient) ?? ingredient;
+          final available = currentStock[key] ?? 0;
+          currentStock[key] = (available - quantity).clamp(0, double.infinity);
         }
         await refreshStock();
       }

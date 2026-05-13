@@ -1,5 +1,6 @@
 import 'package:finalproject/models/product_model.dart';
 import 'package:finalproject/services/ml_service.dart';
+import 'package:finalproject/utils/stock_status.dart';
 import 'package:flutter/material.dart';
 
 class ProductListController extends ChangeNotifier {
@@ -16,12 +17,6 @@ class ProductListController extends ChangeNotifier {
     try {
       final fetchedProducts = await MLService.getProducts();
 
-      String getStatus(int stock) {
-        if (stock == 0) return 'kritis';
-        if (stock <= 5) return 'rendah';
-        return 'tersedia';
-      }
-
       products =
           fetchedProducts.map((p) {
             final stock = p['current_stock'] ?? 0;
@@ -36,7 +31,7 @@ class ProductListController extends ChangeNotifier {
               price: p['price'] ?? 0,
               stock: stock,
               unit: unit,
-              status: getStatus(stock),
+              status: StockStatusUtils.statusFromStock(stock),
             );
           }).toList();
     } finally {
@@ -84,16 +79,7 @@ class ProductListController extends ChangeNotifier {
   }
 
   Color getStatusColor(String status) {
-    switch (status) {
-      case 'tersedia':
-        return const Color(0xFF10B981);
-      case 'rendah':
-        return const Color(0xFFFB923C);
-      case 'kritis':
-        return const Color(0xFFDC2626);
-      default:
-        return const Color(0xFF9CA3AF);
-    }
+    return StockStatusUtils.color(status);
   }
 
   IconData getCategoryIcon(String category) {
@@ -122,16 +108,7 @@ class ProductListController extends ChangeNotifier {
   String formatPrice(int price) => 'Rp ${(price ~/ 1000)}K';
 
   String getStatusLabel(String status) {
-    switch (status) {
-      case 'tersedia':
-        return '✅ Tersedia';
-      case 'rendah':
-        return '⚠️ Rendah';
-      case 'kritis':
-        return '🔴 Kritis';
-      default:
-        return 'Unknown';
-    }
+    return StockStatusUtils.label(status, withIcon: true);
   }
 
   String capitalize(String text) =>

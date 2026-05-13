@@ -186,7 +186,7 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                               scrollDirection: Axis.horizontal,
                               child: Row(
                                 children:
-                                    ['semua', 'tersedia', 'rendah', 'kritis']
+                                    ['semua', 'tersedia', 'sedang', 'kritis']
                                         .map(
                                           (filter) => Padding(
                                             padding: const EdgeInsets.only(

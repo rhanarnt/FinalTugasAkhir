@@ -5,7 +5,7 @@ class Product {
   final int price;
   final int stock;
   final String unit;
-  final String status; // 'tersedia', 'rendah', 'kritis'
+  final String status; // 'tersedia', 'sedang', 'kritis'
 
   Product({
     required this.id,

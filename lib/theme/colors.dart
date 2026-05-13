@@ -14,7 +14,7 @@ class AppColors {
 
   // Status Colors
   static const Color statusSuccess = Color(0xFF4CAF50); // Tersedia (green)
-  static const Color statusWarning = Color(0xFFFF9800); // Rendah (orange)
+  static const Color statusWarning = Color(0xFFFF9800); // Sedang (orange)
   static const Color statusError = Color(0xFFF44336); // Kritis (red)
 
   // Neutral Colors

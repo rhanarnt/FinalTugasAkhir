@@ -5,7 +5,7 @@ class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://192.168.1.91:5000';
+  static const String baseUrl = 'http://192.168.18.30:5000';
 
   static const int timeoutSeconds = 30;
 
@@ -195,6 +195,63 @@ class MLService {
       }
     } catch (e) {
       return {'status': 'error', 'message': 'Connection error: $e'};
+    }
+  }
+
+  // ========================================================================
+  // DASHBOARD ENDPOINTS
+  // ========================================================================
+
+  /// Ringkasan dashboard: penggunaan bahan
+  static Future<Map<String, dynamic>> getDashboardSummary() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/api/dashboard/summary'))
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+
+      return {
+        'status': false,
+        'message': 'Server error: ${response.statusCode}',
+        'penggunaan_bahan': [],
+      };
+    } catch (e) {
+      return {
+        'status': false,
+        'message': 'Connection error: $e',
+        'penggunaan_bahan': [],
+      };
+    }
+  }
+
+  /// Total bahan keluar yang digunakan hari ini.
+  static Future<Map<String, dynamic>> getBahanDigunakanHariIni() async {
+    const fallback = {
+      'total': 0,
+      'satuan': 'kg',
+      'keterangan': 'total penggunaan hari ini',
+    };
+
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/api/dashboard/bahan-digunakan-hari-ini'))
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data is Map<String, dynamic> ? data : fallback;
+      }
+
+      return {
+        ...fallback,
+        'status': false,
+        'message': 'Server error: ${response.statusCode}',
+      };
+    } catch (e) {
+      return {...fallback, 'status': false, 'message': 'Connection error: $e'};
     }
   }
 
@@ -505,6 +562,7 @@ class MLService {
     required int predictedQuantity,
     double? rawValue,
     int? estimatedTotalPrice,
+    String? estimatedNeeds,
     double? accuracyR2,
     double? errorMae,
   }) async {
@@ -518,6 +576,7 @@ class MLService {
         if (rawValue != null) 'raw_value': rawValue,
         if (estimatedTotalPrice != null)
           'estimated_total_price': estimatedTotalPrice,
+        if (estimatedNeeds != null) 'estimated_needs': estimatedNeeds,
         if (accuracyR2 != null) 'accuracy_r2': accuracyR2,
         if (errorMae != null) 'error_mae': errorMae,
       };

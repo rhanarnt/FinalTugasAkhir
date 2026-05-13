@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:async';
 
 import 'package:finalproject/services/ml_service.dart';
 import 'package:flutter/material.dart';

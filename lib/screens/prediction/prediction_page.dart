@@ -706,10 +706,8 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                         _controller
                                                             .productionQuantity
                                                     : 0.0;
-                                            final stockKg =
-                                                _controller
-                                                    .currentStock[ingredient] ??
-                                                0.0;
+                                            final stockKg = _controller
+                                                .getCurrentStock(ingredient);
                                             final requiredGram =
                                                 isSelected
                                                     ? _controller.toGram(
@@ -845,7 +843,10 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                                             ),
                                                                           ),
                                                                           Text(
-                                                                            '${_controller.formatQuantity(stockKg)} kg',
+                                                                            _controller.formatStockQuantity(
+                                                                              ingredient,
+                                                                              stockKg,
+                                                                            ),
                                                                             style: const TextStyle(
                                                                               fontSize:
                                                                                   12,
@@ -921,7 +922,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                     ),
                                   ),
                                 const SizedBox(height: 16),
-                                if (_controller.roundedUsage.isNotEmpty) ...[
+                                if (_controller.stockUsage.isNotEmpty) ...[
                                   const Text(
                                     'Ringkasan Pengurangan Stok',
                                     style: TextStyle(
@@ -946,13 +947,11 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                     ),
                                     child: Column(
                                       children:
-                                          _controller.roundedUsage.entries.map((
+                                          _controller.stockUsage.entries.map((
                                             entry,
                                           ) {
                                             final ingredient = entry.key;
                                             final amount = entry.value;
-                                            final stockUnit = _controller
-                                                .getStockUnit(ingredient);
                                             return Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -980,7 +979,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                     ),
                                                   ),
                                                   Text(
-                                                    '-${_controller.formatQuantity(amount)} $stockUnit',
+                                                    '-${_controller.formatStockQuantity(ingredient, amount)}',
                                                     style: const TextStyle(
                                                       fontSize: 12,
                                                       fontWeight:

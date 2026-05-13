@@ -1,8 +1,14 @@
+import 'dart:io';
+
 import 'package:finalproject/theme/colors.dart';
 import 'package:finalproject/theme/text_styles.dart';
-import 'package:flutter/material.dart';
+import 'package:finalproject/utils/stock_status.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'report_controller.dart';
 
@@ -15,8 +21,12 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
+  final DateFormat _fileDateFormat = DateFormat('yyyyMMdd_HHmmss');
+  final ScrollController _stockTableScrollController = ScrollController();
+  final ScrollController _stockHistoryScrollController = ScrollController();
 
   late final ReportController _controller;
+  String? _lastExportPath;
 
   @override
   void initState() {
@@ -26,15 +36,11 @@ class _ReportScreenState extends State<ReportScreen> {
     _controller.startAutoRefresh();
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'Kritis':
-        return AppColors.statusError;
-      case 'Rendah':
-        return AppColors.statusWarning;
-      default:
-        return AppColors.statusSuccess;
-    }
+  double _sectionMaxHeight() {
+    final height = MediaQuery.of(context).size.height * 0.35;
+    if (height < 220) return 220;
+    if (height > 360) return 360;
+    return height;
   }
 
   @override
@@ -82,10 +88,10 @@ class _ReportScreenState extends State<ReportScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.statusError.withOpacity(0.1),
+                        color: AppColors.statusError.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.statusError.withOpacity(0.3),
+                          color: AppColors.statusError.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Text(
@@ -152,7 +158,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   const SizedBox(height: 12),
                   _buildCriticalItems(_controller.criticalItems),
                   const SizedBox(height: 24),
-                  _buildExportButton(),
+                  _buildExportActions(),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -233,7 +239,7 @@ class _ReportScreenState extends State<ReportScreen> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -278,59 +284,81 @@ class _ReportScreenState extends State<ReportScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [AppColors.shadowLight],
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child:
-            items.isEmpty
-                ? Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Data stok bahan belum tersedia.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
+      child:
+          items.isEmpty
+              ? Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Data stok bahan belum tersedia.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              )
+              : SizedBox(
+                height: _sectionMaxHeight(),
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  controller: _stockTableScrollController,
+                  child: SingleChildScrollView(
+                    controller: _stockTableScrollController,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columns: const [
+                          DataColumn(label: Text('Nama Bahan')),
+                          DataColumn(label: Text('Stok Tersedia')),
+                          DataColumn(label: Text('Status')),
+                        ],
+                        rows:
+                            items.map((item) {
+                              final stockValue = StockStatusUtils.parseStock(
+                                item['stock'],
+                              );
+                              final statusKey =
+                                  StockStatusUtils.statusFromStock(stockValue);
+                              final statusColor = StockStatusUtils.color(
+                                statusKey,
+                              );
+                              final statusLabel = StockStatusUtils.label(
+                                statusKey,
+                              );
+                              final unit = item['unit']?.toString() ?? 'kg';
+
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(item['name'] as String)),
+                                  DataCell(Text('${item['stock']} $unit')),
+                                  DataCell(
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        statusLabel,
+                                        style: AppTextStyles.labelSmall
+                                            .copyWith(
+                                              color: statusColor,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                      ),
                     ),
                   ),
-                )
-                : DataTable(
-                  columns: const [
-                    DataColumn(label: Text('Nama Bahan')),
-                    DataColumn(label: Text('Stok Tersedia')),
-                    DataColumn(label: Text('Status')),
-                  ],
-                  rows:
-                      items.map((item) {
-                        final statusColor = _statusColor(
-                          item['status'] as String,
-                        );
-                        final unit = item['unit']?.toString() ?? 'kg';
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(item['name'] as String)),
-                            DataCell(Text('${item['stock']} $unit')),
-                            DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  item['status'] as String,
-                                  style: AppTextStyles.labelSmall.copyWith(
-                                    color: statusColor,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
                 ),
-      ),
+              ),
     );
   }
 
@@ -342,23 +370,31 @@ class _ReportScreenState extends State<ReportScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [AppColors.shadowLight],
       ),
-      child: Column(
-        children:
-            items.isEmpty
-                ? [
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      'Belum ada riwayat stok masuk.',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
+      child:
+          items.isEmpty
+              ? Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  'Belum ada riwayat stok masuk.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
                   ),
-                ]
-                : items
-                    .map(
-                      (entry) => ListTile(
+                ),
+              )
+              : SizedBox(
+                height: _sectionMaxHeight(),
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  controller: _stockHistoryScrollController,
+                  child: ListView.separated(
+                    controller: _stockHistoryScrollController,
+                    padding: EdgeInsets.zero,
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const Divider(height: 8),
+                    itemBuilder: (context, index) {
+                      final entry = items[index];
+
+                      return ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 8,
                         ),
@@ -366,7 +402,9 @@ class _ReportScreenState extends State<ReportScreen> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: AppColors.primaryBrown.withOpacity(0.12),
+                            color: AppColors.primaryBrown.withValues(
+                              alpha: 0.12,
+                            ),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -391,10 +429,11 @@ class _ReportScreenState extends State<ReportScreen> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ),
-                    )
-                    .toList(),
-      ),
+                      );
+                    },
+                  ),
+                ),
+              ),
     );
   }
 
@@ -430,7 +469,9 @@ class _ReportScreenState extends State<ReportScreen> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: AppColors.secondaryBlue.withOpacity(0.12),
+                            color: AppColors.secondaryBlue.withValues(
+                              alpha: 0.12,
+                            ),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -443,7 +484,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           style: AppTextStyles.labelLarge,
                         ),
                         subtitle: Text(
-                          '${item['needs']} • ${_dateFormat.format(item['date'] as DateTime)}',
+                          '${item['needs']} - ${_dateFormat.format(item['date'] as DateTime)}',
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.textTertiary,
                           ),
@@ -489,10 +530,15 @@ class _ReportScreenState extends State<ReportScreen> {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      interval: 1,
                       getTitlesWidget: (value, meta) {
+                        if (value % 1 != 0) {
+                          return const SizedBox.shrink();
+                        }
                         if (value < 0 || value >= usageBars.length) {
                           return const SizedBox.shrink();
                         }
+
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
@@ -546,7 +592,15 @@ class _ReportScreenState extends State<ReportScreen> {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      interval: 1,
                       getTitlesWidget: (value, meta) {
+                        if (value % 1 != 0) {
+                          return const SizedBox.shrink();
+                        }
+                        if (value < 0 || value >= demandTrend.length) {
+                          return const SizedBox.shrink();
+                        }
+
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
@@ -577,7 +631,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     dotData: FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: AppColors.secondaryBlue.withOpacity(0.15),
+                      color: AppColors.secondaryBlue.withValues(alpha: 0.15),
                     ),
                   ),
                 ],
@@ -596,12 +650,14 @@ class _ReportScreenState extends State<ReportScreen> {
                 centerSpaceRadius: 40,
                 sections:
                     usagePie.map((entry) {
+                      final value = entry['value'] as double;
+
                       return PieChartSectionData(
-                        value: entry['value'] as double,
+                        value: value,
                         color: entry['color'] as Color,
                         radius: 50,
-                        showTitle: true,
-                        title: '${entry['value']}%',
+                        showTitle: value >= 5,
+                        title: '${value.toStringAsFixed(1)}%',
                         titleStyle: AppTextStyles.labelSmall.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -675,7 +731,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: AppColors.statusError.withOpacity(0.12),
+                        color: AppColors.statusError.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
@@ -720,29 +776,174 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _buildExportButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Export laporan masih menggunakan data dummy.'),
+  Widget _buildExportActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ElevatedButton.icon(
+          onPressed: _exportReport,
+          icon: const Icon(Icons.download_rounded),
+          label: const Text('Export Laporan'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryBrown,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-          );
-        },
-        icon: const Icon(Icons.download_rounded),
-        label: const Text('Export Laporan'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryBrown,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
           ),
         ),
-      ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _lastExportPath == null ? null : _openLastExport,
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Buka File'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _lastExportPath == null ? null : _shareLastExport,
+                icon: const Icon(Icons.share_outlined),
+                label: const Text('Bagikan'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
+  }
+
+  Future<void> _exportReport() async {
+    if (_controller.stockItems.isEmpty &&
+        _controller.stockHistory.isEmpty &&
+        _controller.predictionItems.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data laporan masih kosong.')),
+      );
+      return;
+    }
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = _fileDateFormat.format(DateTime.now());
+      final filePath =
+          '${directory.path}${Platform.pathSeparator}'
+          'laporan_$timestamp.csv';
+      final file = File(filePath);
+
+      await file.writeAsString(_buildCsvContent());
+
+      if (!mounted) return;
+      setState(() => _lastExportPath = filePath);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Laporan tersimpan: $filePath')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal export laporan: $e')));
+    }
+  }
+
+  Future<void> _openLastExport() async {
+    final path = _lastExportPath;
+    if (path == null) return;
+
+    final result = await OpenFilex.open(path);
+    if (!mounted || result.type == ResultType.done) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Gagal membuka file: ${result.message}')),
+    );
+  }
+
+  Future<void> _shareLastExport() async {
+    final path = _lastExportPath;
+    if (path == null) return;
+
+    await Share.shareXFiles(
+      [XFile(path)],
+      text: 'Laporan & Analitik',
+      subject: 'Export Laporan',
+    );
+  }
+
+  String _buildCsvContent() {
+    final buffer = StringBuffer();
+    buffer.writeln('Laporan & Analitik');
+    buffer.writeln('Tanggal,${_dateFormat.format(DateTime.now())}');
+    buffer.writeln('');
+
+    buffer.writeln('Ringkasan');
+    buffer.writeln('Total Produk,${_controller.totalProduk}');
+    buffer.writeln('Total Bahan,${_controller.totalBahan}');
+    buffer.writeln('Stok Kritis,${_controller.totalKritis}');
+    buffer.writeln('Total Prediksi,${_controller.totalPrediksi}');
+    buffer.writeln('');
+
+    buffer.writeln('Laporan Stok Bahan');
+    buffer.writeln('Nama Bahan,Stok,Unit,Status');
+    for (final item in _controller.stockItems) {
+      final stockValue = StockStatusUtils.parseStock(item['stock']);
+      final statusKey = StockStatusUtils.statusFromStock(stockValue);
+      final statusLabel = StockStatusUtils.label(statusKey);
+      buffer.writeln(
+        '${_escapeCsv(item['name'])},${item['stock']},'
+        '${_escapeCsv(item['unit'])},$statusLabel',
+      );
+    }
+    buffer.writeln('');
+
+    buffer.writeln('Riwayat Stok Masuk');
+    buffer.writeln('Tanggal,Nama Bahan,Jumlah,Unit');
+    for (final entry in _controller.stockHistory) {
+      final date = _dateFormat.format(entry['date'] as DateTime);
+      buffer.writeln(
+        '$date,${_escapeCsv(entry['name'])},${entry['amount']},'
+        '${_escapeCsv(entry['unit'])}',
+      );
+    }
+    buffer.writeln('');
+
+    buffer.writeln('Laporan Prediksi Permintaan');
+    buffer.writeln('Tanggal,Produk,Prediksi,Estimasi Kebutuhan');
+    for (final item in _controller.predictionItems) {
+      final date = _dateFormat.format(item['date'] as DateTime);
+      buffer.writeln(
+        '$date,${_escapeCsv(item['product'])},${item['prediction']},'
+        '${_escapeCsv(item['needs'])}',
+      );
+    }
+    buffer.writeln('');
+
+    return buffer.toString();
+  }
+
+  String _escapeCsv(dynamic value) {
+    final text = value?.toString() ?? '';
+    if (text.contains(',') || text.contains('"') || text.contains('\n')) {
+      final escaped = text.replaceAll('"', '""');
+      return '"$escaped"';
+    }
+    return text;
   }
 
   List<Map<String, dynamic>> _buildUsageBars(
@@ -799,6 +1000,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   void dispose() {
+    _stockTableScrollController.dispose();
+    _stockHistoryScrollController.dispose();
     _controller.dispose();
     super.dispose();
   }

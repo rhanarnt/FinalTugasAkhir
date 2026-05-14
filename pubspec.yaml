@@ -46,6 +46,7 @@ dependencies:
 
   # File export
   path_provider: ^2.1.4
+  pdf: ^3.11.1
 
   # Open file + share
   open_filex: ^4.5.0

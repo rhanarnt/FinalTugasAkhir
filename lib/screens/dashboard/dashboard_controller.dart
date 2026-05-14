@@ -38,13 +38,11 @@ class DashboardController extends ChangeNotifier {
         MLService.getBahanDigunakanHariIni(),
         MLService.getDashboardSummary(),
         MLService.getProducts(),
-        MLService.getReportCritical(),
       ]);
 
       final bahanDigunakan = results[0] as Map<String, dynamic>;
       final summary = results[1] as Map<String, dynamic>;
       final products = results[2] as List;
-      final critical = results[3] as Map<String, dynamic>;
 
       _applyBahanDigunakanHariIni(bahanDigunakan);
 
@@ -56,18 +54,13 @@ class DashboardController extends ChangeNotifier {
       }
 
       totalProduk = products.length;
-
-      if (critical['status'] == true) {
-        _applyLowStockItems(critical['data']);
-      } else {
-        _applyDummyLowStock();
-      }
+      _applyLowStockProducts(products);
     } catch (e) {
       errorMessage = 'Gagal memuat dashboard: $e';
       bahanDigunakanError = 'Gagal memuat bahan digunakan hari ini';
       _resetBahanDigunakanHariIni();
       _applyDummyPenggunaan();
-      _applyDummyLowStock();
+      lowStockItems.clear();
     } finally {
       isLoading = false;
       isBahanDigunakanLoading = false;
@@ -109,25 +102,31 @@ class DashboardController extends ChangeNotifier {
     }
   }
 
-  void _applyLowStockItems(dynamic data) {
+  void _applyLowStockProducts(List<dynamic> products) {
     lowStockItems.clear();
-    if (data is! List || data.isEmpty) {
-      _applyDummyLowStock();
-      return;
-    }
 
-    for (final item in data) {
-      final stockValue = StockStatusUtils.parseStock(item['stok']);
+    for (final item in products) {
+      if (item is! Map) continue;
+
+      final stockValue = StockStatusUtils.parseStock(item['current_stock']);
       final statusKey = StockStatusUtils.statusFromStock(stockValue);
-      final unit = item['unit'] ?? 'kg';
-      final stockLabel = item['stok']?.toString() ?? '0';
+      if (statusKey != StockStatusUtils.statusKritis) continue;
+
+      final category = item['category']?.toString().toLowerCase() ?? '';
+      final unit =
+          item['unit']?.toString() ?? (category == 'barang' ? 'pcs' : 'kg');
       lowStockItems.add({
-        'name': item['nama_bahan']?.toString() ?? '-',
-        'stock': '$stockLabel $unit',
+        'name': item['name']?.toString() ?? '-',
+        'stock': '${_formatStock(stockValue)} $unit',
+        'statusKey': statusKey,
         'status': StockStatusUtils.label(statusKey),
         'statusColor': StockStatusUtils.color(statusKey),
       });
     }
+
+    lowStockItems.sort(
+      (a, b) => a['name'].toString().compareTo(b['name'].toString()),
+    );
   }
 
   void _applyDummyPenggunaan() {
@@ -142,34 +141,11 @@ class DashboardController extends ChangeNotifier {
       ]);
   }
 
-  void _applyDummyLowStock() {
-    lowStockItems
-      ..clear()
-      ..addAll([
-        {
-          'name': 'Tepung Terigu',
-          'stock': '5 kg',
-          'status': StockStatusUtils.label(StockStatusUtils.statusFromStock(5)),
-          'statusColor': StockStatusUtils.color(
-            StockStatusUtils.statusFromStock(5),
-          ),
-        },
-        {
-          'name': 'Gula Pasir',
-          'stock': '8 kg',
-          'status': StockStatusUtils.label(StockStatusUtils.statusFromStock(8)),
-          'statusColor': StockStatusUtils.color(
-            StockStatusUtils.statusFromStock(8),
-          ),
-        },
-        {
-          'name': 'Mentega',
-          'stock': '3 kg',
-          'status': StockStatusUtils.label(StockStatusUtils.statusFromStock(3)),
-          'statusColor': StockStatusUtils.color(
-            StockStatusUtils.statusFromStock(3),
-          ),
-        },
-      ]);
+  String _formatStock(double value) {
+    if (value % 1 == 0) {
+      return value.toInt().toString();
+    }
+
+    return value.toStringAsFixed(1);
   }
 }

@@ -90,32 +90,36 @@ class _DashboardScreenState extends State<DashboardScreen> with RouteAware {
                                       padding: EdgeInsets.zero,
                                     ),
                                   ),
-                                  Positioned(
-                                    right: 4,
-                                    top: 4,
-                                    child: Container(
-                                      width: 22,
-                                      height: 22,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.statusError,
-                                        borderRadius: BorderRadius.circular(11),
-                                        border: Border.all(
-                                          color: AppColors.primaryBrown,
-                                          width: 2,
+                                  if (_controller.lowStockItems.isNotEmpty)
+                                    Positioned(
+                                      right: 4,
+                                      top: 4,
+                                      child: Container(
+                                        width: 22,
+                                        height: 22,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.statusError,
+                                          borderRadius: BorderRadius.circular(
+                                            11,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.primaryBrown,
+                                            width: 2,
+                                          ),
                                         ),
-                                      ),
-                                      child: const Center(
-                                        child: Text(
-                                          '3',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
+                                        child: Center(
+                                          child: Text(
+                                            _controller.lowStockItems.length
+                                                .toString(),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ],
@@ -278,58 +282,72 @@ class _DashboardScreenState extends State<DashboardScreen> with RouteAware {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            ..._controller.lowStockItems.map((item) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            item['name'],
-                                            style: AppTextStyles.labelLarge
-                                                .copyWith(
-                                                  color: AppColors.textPrimary,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Stok: ${item['stock']}',
-                                            style: AppTextStyles.bodySmall
-                                                .copyWith(
-                                                  color: AppColors.textTertiary,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: item['statusColor'],
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        item['status'],
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
+                            if (_controller.isLoading)
+                              const Center(child: CircularProgressIndicator())
+                            else if (_controller.lowStockItems.isEmpty)
+                              Text(
+                                'Tidak ada stok kritis',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
+                              )
+                            else
+                              ..._controller.lowStockItems.map((item) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item['name'],
+                                              style: AppTextStyles.labelLarge
+                                                  .copyWith(
+                                                    color:
+                                                        AppColors.textPrimary,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Stok: ${item['stock']}',
+                                              style: AppTextStyles.bodySmall
+                                                  .copyWith(
+                                                    color:
+                                                        AppColors.textTertiary,
+                                                  ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: item['statusColor'],
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          item['status'],
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
                           ],
                         ),
                       ),

@@ -5,7 +5,7 @@ class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://192.168.18.30:5000';
+  static const String baseUrl = 'http://192.168.1.44:5000';
 
   static const int timeoutSeconds = 30;
 

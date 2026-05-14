@@ -8,9 +8,33 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 import 'report_controller.dart';
+
+enum ExportPeriod {
+  daily('Harian', 'harian'),
+  biweekly('2 Mingguan', 'dua_mingguan'),
+  monthly('Bulanan', 'bulanan');
+
+  const ExportPeriod(this.label, this.fileKey);
+
+  final String label;
+  final String fileKey;
+}
+
+enum ExportFormat {
+  csv('CSV', 'csv', 'csv'),
+  pdf('PDF', 'pdf', 'pdf');
+
+  const ExportFormat(this.label, this.fileKey, this.extension);
+
+  final String label;
+  final String fileKey;
+  final String extension;
+}
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -50,10 +74,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
     final usageBars = _buildUsageBars(_controller.usageSummary);
     final usagePie = _buildUsagePie(usageBars);
-    final List<double> demandTrend =
-        _controller.demandTrend.isNotEmpty
-            ? _controller.demandTrend
-            : const <double>[28, 32, 40, 36, 44, 50, 48];
+    final List<double> demandTrend = _controller.demandTrend;
 
     return Scaffold(
       backgroundColor: AppColors.bgLight,
@@ -438,6 +459,10 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _buildPredictionList(List<Map<String, dynamic>> items) {
+    final listHeight = items.length * 76.0;
+    final maxHeight = _sectionMaxHeight();
+    final height = listHeight < maxHeight ? listHeight : maxHeight;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -445,23 +470,29 @@ class _ReportScreenState extends State<ReportScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [AppColors.shadowLight],
       ),
-      child: Column(
-        children:
-            items.isEmpty
-                ? [
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      'Belum ada data prediksi.',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
+      child:
+          items.isEmpty
+              ? Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  'Belum ada data prediksi.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
                   ),
-                ]
-                : items
-                    .map(
-                      (item) => ListTile(
+                ),
+              )
+              : SizedBox(
+                height: height,
+                child: Scrollbar(
+                  child: ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: items.length,
+                    separatorBuilder:
+                        (context, index) =>
+                            const Divider(height: 1, indent: 56),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      return ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 8,
                         ),
@@ -481,25 +512,30 @@ class _ReportScreenState extends State<ReportScreen> {
                         ),
                         title: Text(
                           item['product'] as String,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.labelLarge,
                         ),
                         subtitle: Text(
                           '${item['needs']} - ${_dateFormat.format(item['date'] as DateTime)}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.textTertiary,
                           ),
                         ),
                         trailing: Text(
-                          '${item['prediction']} unit',
+                          '${_formatQuantity(item['prediction'])} unit',
                           style: AppTextStyles.labelLarge.copyWith(
                             color: AppColors.primaryBrown,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ),
-                    )
-                    .toList(),
-      ),
+                      );
+                    },
+                  ),
+                ),
+              ),
     );
   }
 
@@ -512,161 +548,111 @@ class _ReportScreenState extends State<ReportScreen> {
       children: [
         _buildChartCard(
           title: 'Bar Chart Penggunaan Bahan',
-          child: SizedBox(
-            height: 180,
-            child: BarChart(
-              BarChartData(
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 1,
-                      getTitlesWidget: (value, meta) {
-                        if (value % 1 != 0) {
-                          return const SizedBox.shrink();
-                        }
-                        if (value < 0 || value >= usageBars.length) {
-                          return const SizedBox.shrink();
-                        }
+          child:
+              usageBars.isEmpty
+                  ? _buildEmptyChartState(
+                    icon: Icons.inventory_2_outlined,
+                    message:
+                        'Belum ada data penggunaan barang atau bahan dari API untuk membuat grafik.',
+                  )
+                  : SizedBox(
+                    height: 180,
+                    child: BarChart(
+                      BarChartData(
+                        borderData: FlBorderData(show: false),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          rightTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: 1,
+                              getTitlesWidget: (value, meta) {
+                                if (value % 1 != 0) {
+                                  return const SizedBox.shrink();
+                                }
+                                if (value < 0 || value >= usageBars.length) {
+                                  return const SizedBox.shrink();
+                                }
 
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            usageBars[value.toInt()]['label'] as String,
-                            style: AppTextStyles.labelSmall.copyWith(
-                              color: AppColors.textSecondary,
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Text(
+                                    usageBars[value.toInt()]['label'] as String,
+                                    style: AppTextStyles.labelSmall.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ),
-                        );
-                      },
+                        ),
+                        barGroups:
+                            usageBars.asMap().entries.map((entry) {
+                              return BarChartGroupData(
+                                x: entry.key,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: entry.value['value'] as double,
+                                    color: entry.value['color'] as Color,
+                                    width: 18,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                      ),
                     ),
                   ),
-                ),
-                barGroups:
-                    usageBars.asMap().entries.map((entry) {
-                      return BarChartGroupData(
-                        x: entry.key,
-                        barRods: [
-                          BarChartRodData(
-                            toY: entry.value['value'] as double,
-                            color: entry.value['color'] as Color,
-                            width: 18,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ],
-                      );
-                    }).toList(),
-              ),
-            ),
-          ),
         ),
         const SizedBox(height: 16),
         _buildChartCard(
-          title: 'Line Chart Permintaan Produk',
-          child: SizedBox(
-            height: 180,
-            child: LineChart(
-              LineChartData(
-                borderData: FlBorderData(show: false),
-                gridData: FlGridData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 1,
-                      getTitlesWidget: (value, meta) {
-                        if (value % 1 != 0) {
-                          return const SizedBox.shrink();
-                        }
-                        if (value < 0 || value >= demandTrend.length) {
-                          return const SizedBox.shrink();
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            'M${value.toInt() + 1}',
-                            style: AppTextStyles.labelSmall.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots:
-                        demandTrend
-                            .asMap()
-                            .entries
-                            .map(
-                              (entry) =>
-                                  FlSpot(entry.key.toDouble(), entry.value),
-                            )
-                            .toList(),
-                    isCurved: true,
-                    color: AppColors.secondaryBlue,
-                    barWidth: 3,
-                    dotData: FlDotData(show: false),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: AppColors.secondaryBlue.withValues(alpha: 0.15),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          title: 'Tren Permintaan Produk',
+          child: _buildDemandTrendChart(demandTrend),
         ),
         const SizedBox(height: 16),
         _buildChartCard(
           title: 'Pie Chart Bahan Paling Sering Digunakan',
-          child: SizedBox(
-            height: 200,
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 40,
-                sections:
-                    usagePie.map((entry) {
-                      final value = entry['value'] as double;
+          child:
+              usagePie.isEmpty
+                  ? _buildEmptyChartState(
+                    icon: Icons.pie_chart_outline_rounded,
+                    message:
+                        'Belum ada data penggunaan barang atau bahan dari API untuk menghitung item paling sering digunakan.',
+                  )
+                  : SizedBox(
+                    height: 200,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 40,
+                        sections:
+                            usagePie.map((entry) {
+                              final value = entry['value'] as double;
 
-                      return PieChartSectionData(
-                        value: value,
-                        color: entry['color'] as Color,
-                        radius: 50,
-                        showTitle: value >= 5,
-                        title: '${value.toStringAsFixed(1)}%',
-                        titleStyle: AppTextStyles.labelSmall.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      );
-                    }).toList(),
-              ),
-            ),
-          ),
+                              return PieChartSectionData(
+                                value: value,
+                                color: entry['color'] as Color,
+                                radius: 50,
+                                showTitle: value >= 5,
+                                title: '${value.toStringAsFixed(1)}%',
+                                titleStyle: AppTextStyles.labelSmall.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              );
+                            }).toList(),
+                      ),
+                    ),
+                  ),
         ),
       ],
     );
@@ -691,6 +677,274 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
           const SizedBox(height: 12),
           child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDemandTrendChart(List<double> demandTrend) {
+    if (demandTrend.isEmpty) {
+      return _buildEmptyChartState(
+        icon: Icons.show_chart_rounded,
+        message:
+            'Belum ada data prediksi dari API untuk menampilkan tren permintaan produk.',
+      );
+    }
+
+    final minDemand = demandTrend.reduce((a, b) => a < b ? a : b);
+    final maxDemand = demandTrend.reduce((a, b) => a > b ? a : b);
+    final averageDemand =
+        demandTrend.fold<double>(0, (sum, value) => sum + value) /
+        demandTrend.length;
+    final yInterval =
+        (maxDemand / 4).ceilToDouble().clamp(1.0, double.infinity).toDouble();
+    final maxY = (maxDemand + yInterval).ceilToDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Grafik ini menunjukkan jumlah unit produk yang diprediksi akan diminta pada 7 data prediksi terakhir.',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildTrendInfoChip(
+              icon: Icons.trending_down_rounded,
+              label: 'Terendah',
+              value: '${_formatQuantity(minDemand)} unit',
+              color: AppColors.statusWarning,
+            ),
+            _buildTrendInfoChip(
+              icon: Icons.show_chart_rounded,
+              label: 'Rata-rata',
+              value: '${_formatQuantity(averageDemand)} unit',
+              color: AppColors.secondaryBlue,
+            ),
+            _buildTrendInfoChip(
+              icon: Icons.trending_up_rounded,
+              label: 'Tertinggi',
+              value: '${_formatQuantity(maxDemand)} unit',
+              color: AppColors.statusSuccess,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            RotatedBox(
+              quarterTurns: 3,
+              child: Text(
+                'Jumlah permintaan (unit)',
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SizedBox(
+                height: 220,
+                child: LineChart(
+                  LineChartData(
+                    minX: 0,
+                    maxX: (demandTrend.length - 1).toDouble(),
+                    minY: 0,
+                    maxY: maxY,
+                    borderData: FlBorderData(
+                      show: true,
+                      border: Border(
+                        left: BorderSide(color: AppColors.grey200),
+                        bottom: BorderSide(color: AppColors.grey200),
+                      ),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: yInterval,
+                      getDrawingHorizontalLine:
+                          (_) => FlLine(
+                            color: AppColors.grey200.withValues(alpha: 0.7),
+                            strokeWidth: 1,
+                          ),
+                    ),
+                    lineTouchData: LineTouchData(
+                      touchTooltipData: LineTouchTooltipData(
+                        tooltipBgColor: AppColors.textPrimary,
+                        getTooltipItems:
+                            (spots) =>
+                                spots.map((spot) {
+                                  return LineTooltipItem(
+                                    'Prediksi ${spot.x.toInt() + 1}\n${_formatQuantity(spot.y)} unit',
+                                    AppTextStyles.labelSmall.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  );
+                                }).toList(),
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 34,
+                          interval: yInterval,
+                          getTitlesWidget: (value, meta) {
+                            if (value < 0 || value > maxY) {
+                              return const SizedBox.shrink();
+                            }
+                            return Text(
+                              _formatQuantity(value),
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      rightTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      topTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          interval: 1,
+                          reservedSize: 30,
+                          getTitlesWidget: (value, meta) {
+                            if (value % 1 != 0) {
+                              return const SizedBox.shrink();
+                            }
+                            if (value < 0 || value >= demandTrend.length) {
+                              return const SizedBox.shrink();
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                'P${value.toInt() + 1}',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots:
+                            demandTrend
+                                .asMap()
+                                .entries
+                                .map(
+                                  (entry) =>
+                                      FlSpot(entry.key.toDouble(), entry.value),
+                                )
+                                .toList(),
+                        isCurved: true,
+                        color: AppColors.secondaryBlue,
+                        barWidth: 3,
+                        dotData: FlDotData(show: true),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: AppColors.secondaryBlue.withValues(
+                            alpha: 0.12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: Text(
+            'P1-P${demandTrend.length} = urutan data prediksi dari paling lama ke paling baru',
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTrendInfoChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Text(
+            value,
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyChartState({
+    required IconData icon,
+    required String message,
+  }) {
+    return Container(
+      width: double.infinity,
+      height: 160,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.bgLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey200),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: AppColors.textTertiary, size: 32),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -830,6 +1084,11 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _exportReport() async {
+    final period = await _selectExportPeriod();
+    if (period == null) return;
+    final format = await _selectExportFormat();
+    if (format == null) return;
+
     if (_controller.stockItems.isEmpty &&
         _controller.stockHistory.isEmpty &&
         _controller.predictionItems.isEmpty) {
@@ -845,22 +1104,71 @@ class _ReportScreenState extends State<ReportScreen> {
       final timestamp = _fileDateFormat.format(DateTime.now());
       final filePath =
           '${directory.path}${Platform.pathSeparator}'
-          'laporan_$timestamp.csv';
+          'laporan_${period.fileKey}_${format.fileKey}_$timestamp'
+          '.${format.extension}';
       final file = File(filePath);
 
-      await file.writeAsString(_buildCsvContent());
+      if (format == ExportFormat.pdf) {
+        await file.writeAsBytes(await _buildPdfContent(period));
+      } else {
+        await file.writeAsString('\ufeff${_buildCsvContent(period)}');
+      }
 
       if (!mounted) return;
       setState(() => _lastExportPath = filePath);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Laporan tersimpan: $filePath')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Laporan ${format.label} telah diekspor'),
+          action: SnackBarAction(
+            label: 'Buka',
+            onPressed: () {
+              OpenFilex.open(filePath);
+            },
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Gagal export laporan: $e')));
     }
+  }
+
+  Future<ExportPeriod?> _selectExportPeriod() {
+    return showDialog<ExportPeriod>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: const Text('Pilih Periode Export'),
+          children:
+              ExportPeriod.values.map((period) {
+                return SimpleDialogOption(
+                  onPressed: () => Navigator.of(context).pop(period),
+                  child: Text(period.label),
+                );
+              }).toList(),
+        );
+      },
+    );
+  }
+
+  Future<ExportFormat?> _selectExportFormat() {
+    return showDialog<ExportFormat>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: const Text('Pilih Format Export'),
+          children:
+              ExportFormat.values.map((format) {
+                return SimpleDialogOption(
+                  onPressed: () => Navigator.of(context).pop(format),
+                  child: Text(format.label),
+                );
+              }).toList(),
+        );
+      },
+    );
   }
 
   Future<void> _openLastExport() async {
@@ -886,55 +1194,401 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  String _buildCsvContent() {
-    final buffer = StringBuffer();
-    buffer.writeln('Laporan & Analitik');
-    buffer.writeln('Tanggal,${_dateFormat.format(DateTime.now())}');
-    buffer.writeln('');
+  Future<List<int>> _buildPdfContent(ExportPeriod period) async {
+    final now = DateTime.now();
+    final startDate = _periodStartDate(period, now);
+    final endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    final stockHistory =
+        _controller.stockHistory.where((entry) {
+          return _isDateInRange(entry['date'] as DateTime, startDate, endDate);
+        }).toList();
+    final predictionItems =
+        _controller.predictionItems.where((entry) {
+          return _isDateInRange(entry['date'] as DateTime, startDate, endDate);
+        }).toList();
+    final stockItems = _sortedStockItems(_controller.stockItems);
+    final stockSummary = _summarizeStockHistory(stockHistory);
+    final predictionSummary = _summarizePredictions(predictionItems);
 
-    buffer.writeln('Ringkasan');
-    buffer.writeln('Total Produk,${_controller.totalProduk}');
-    buffer.writeln('Total Bahan,${_controller.totalBahan}');
-    buffer.writeln('Stok Kritis,${_controller.totalKritis}');
-    buffer.writeln('Total Prediksi,${_controller.totalPrediksi}');
-    buffer.writeln('');
+    final document = pw.Document();
+    document.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(28),
+        footer: (context) {
+          return pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Text(
+              'Halaman ${context.pageNumber} dari ${context.pagesCount}',
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+            ),
+          );
+        },
+        build: (context) {
+          return [
+            pw.Text(
+              'LAPORAN & ANALITIK',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 12),
+            _pdfSectionTitle('Informasi Laporan'),
+            _pdfTable([
+              ['Keterangan', 'Nilai'],
+              ['Jenis Rekap', period.label],
+              [
+                'Periode',
+                '${_dateFormat.format(startDate)} - ${_dateFormat.format(endDate)}',
+              ],
+              ['Tanggal Export', _dateFormat.format(now)],
+            ]),
+            _pdfSectionTitle('Ringkasan Laporan'),
+            _pdfTable([
+              ['Metrik', 'Nilai'],
+              ['Total Produk', _controller.totalProduk.toString()],
+              ['Total Bahan', _controller.totalBahan.toString()],
+              ['Stok Kritis', _controller.totalKritis.toString()],
+              ['Total Prediksi Periode', predictionItems.length.toString()],
+              [
+                'Total Transaksi Stok Masuk Periode',
+                stockHistory.length.toString(),
+              ],
+            ]),
+            _pdfSectionTitle('Stok Bahan Saat Ini'),
+            _pdfTable([
+              ['No', 'Nama Bahan', 'Stok', 'Unit', 'Status'],
+              ...stockItems.asMap().entries.map((entry) {
+                final item = entry.value;
+                final stockValue = StockStatusUtils.parseStock(item['stock']);
+                final statusKey = StockStatusUtils.statusFromStock(stockValue);
+                return [
+                  '${entry.key + 1}',
+                  item['name']?.toString() ?? '-',
+                  _formatQuantity(stockValue),
+                  item['unit']?.toString() ?? 'kg',
+                  StockStatusUtils.label(statusKey),
+                ];
+              }),
+            ]),
+            _pdfSectionTitle('Rekap Stok Masuk Periode'),
+            _pdfTable([
+              ['No', 'Nama Bahan', 'Total Jumlah', 'Unit'],
+              if (stockSummary.isEmpty)
+                ['-', 'Tidak ada data stok masuk pada periode ini', '-', '-']
+              else
+                ...stockSummary.asMap().entries.map((entry) {
+                  final item = entry.value;
+                  return [
+                    '${entry.key + 1}',
+                    item['name']?.toString() ?? '-',
+                    _formatQuantity(item['amount']),
+                    item['unit']?.toString() ?? 'kg',
+                  ];
+                }),
+            ]),
+            _pdfSectionTitle('Detail Riwayat Stok Masuk Periode'),
+            _pdfTable([
+              ['No', 'Tanggal', 'Nama Bahan', 'Jumlah', 'Unit'],
+              if (stockHistory.isEmpty)
+                ['-', 'Tidak ada data', '-', '-', '-']
+              else
+                ...stockHistory.asMap().entries.map((entry) {
+                  final item = entry.value;
+                  return [
+                    '${entry.key + 1}',
+                    _dateFormat.format(item['date'] as DateTime),
+                    item['name']?.toString() ?? '-',
+                    _formatQuantity(item['amount']),
+                    item['unit']?.toString() ?? 'kg',
+                  ];
+                }),
+            ]),
+            _pdfSectionTitle('Rekap Prediksi Periode'),
+            _pdfTable([
+              ['No', 'Produk', 'Total Prediksi', 'Estimasi Kebutuhan Terakhir'],
+              if (predictionSummary.isEmpty)
+                ['-', 'Tidak ada data prediksi pada periode ini', '-', '-']
+              else
+                ...predictionSummary.asMap().entries.map((entry) {
+                  final item = entry.value;
+                  return [
+                    '${entry.key + 1}',
+                    item['product']?.toString() ?? '-',
+                    _formatQuantity(item['prediction']),
+                    item['needs']?.toString() ?? '-',
+                  ];
+                }),
+            ]),
+            _pdfSectionTitle('Detail Prediksi Permintaan Periode'),
+            _pdfTable([
+              ['No', 'Tanggal', 'Produk', 'Prediksi', 'Estimasi Kebutuhan'],
+              if (predictionItems.isEmpty)
+                ['-', 'Tidak ada data', '-', '-', '-']
+              else
+                ...predictionItems.asMap().entries.map((entry) {
+                  final item = entry.value;
+                  return [
+                    '${entry.key + 1}',
+                    _dateFormat.format(item['date'] as DateTime),
+                    item['product']?.toString() ?? '-',
+                    _formatQuantity(item['prediction']),
+                    item['needs']?.toString() ?? '-',
+                  ];
+                }),
+            ]),
+          ];
+        },
+      ),
+    );
 
-    buffer.writeln('Laporan Stok Bahan');
-    buffer.writeln('Nama Bahan,Stok,Unit,Status');
-    for (final item in _controller.stockItems) {
+    return document.save();
+  }
+
+  pw.Widget _pdfSectionTitle(String title) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(top: 14, bottom: 6),
+      child: pw.Text(
+        title,
+        style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+      ),
+    );
+  }
+
+  pw.Widget _pdfTable(List<List<String>> rows) {
+    return pw.TableHelper.fromTextArray(
+      data: rows,
+      headerCount: 1,
+      border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+      headerStyle: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+      cellStyle: const pw.TextStyle(fontSize: 8),
+      cellAlignment: pw.Alignment.centerLeft,
+      headerAlignment: pw.Alignment.centerLeft,
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+    );
+  }
+
+  String _buildCsvContent(ExportPeriod period) {
+    final now = DateTime.now();
+    final startDate = _periodStartDate(period, now);
+    final endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    final stockHistory =
+        _controller.stockHistory.where((entry) {
+          return _isDateInRange(entry['date'] as DateTime, startDate, endDate);
+        }).toList();
+    final predictionItems =
+        _controller.predictionItems.where((entry) {
+          return _isDateInRange(entry['date'] as DateTime, startDate, endDate);
+        }).toList();
+
+    final buffer =
+        StringBuffer()
+          ..writeln('LAPORAN & ANALITIK')
+          ..writeln('');
+
+    _writeSection(buffer, 'Informasi Laporan');
+    buffer
+      ..writeln('Keterangan,Nilai')
+      ..writeln('Jenis Rekap,${period.label}')
+      ..writeln(
+        'Periode,${_dateFormat.format(startDate)} - ${_dateFormat.format(endDate)}',
+      )
+      ..writeln('Tanggal Export,${_dateFormat.format(now)}')
+      ..writeln('');
+
+    _writeSection(buffer, 'Ringkasan Laporan');
+    buffer
+      ..writeln('Metrik,Nilai')
+      ..writeln('Total Produk,${_controller.totalProduk}')
+      ..writeln('Total Bahan,${_controller.totalBahan}')
+      ..writeln('Stok Kritis,${_controller.totalKritis}')
+      ..writeln('Total Prediksi Periode,${predictionItems.length}')
+      ..writeln('Total Transaksi Stok Masuk Periode,${stockHistory.length}')
+      ..writeln('');
+
+    _writeSection(buffer, 'Stok Bahan Saat Ini');
+    buffer.writeln('No,Nama Bahan,Stok,Unit,Status');
+    final stockItems = _sortedStockItems(_controller.stockItems);
+    for (var index = 0; index < stockItems.length; index++) {
+      final item = stockItems[index];
       final stockValue = StockStatusUtils.parseStock(item['stock']);
       final statusKey = StockStatusUtils.statusFromStock(stockValue);
       final statusLabel = StockStatusUtils.label(statusKey);
       buffer.writeln(
-        '${_escapeCsv(item['name'])},${item['stock']},'
+        '${index + 1},${_escapeCsv(item['name'])},'
+        '${_formatQuantity(stockValue)},'
         '${_escapeCsv(item['unit'])},$statusLabel',
       );
     }
     buffer.writeln('');
 
-    buffer.writeln('Riwayat Stok Masuk');
-    buffer.writeln('Tanggal,Nama Bahan,Jumlah,Unit');
-    for (final entry in _controller.stockHistory) {
-      final date = _dateFormat.format(entry['date'] as DateTime);
+    _writeSection(buffer, 'Rekap Stok Masuk Periode');
+    buffer.writeln('No,Nama Bahan,Total Jumlah,Unit');
+    final stockSummary = _summarizeStockHistory(stockHistory);
+    if (stockSummary.isEmpty) {
+      buffer.writeln('-,Tidak ada data stok masuk pada periode ini,-,-');
+    }
+    for (var index = 0; index < stockSummary.length; index++) {
+      final entry = stockSummary[index];
       buffer.writeln(
-        '$date,${_escapeCsv(entry['name'])},${entry['amount']},'
+        '${index + 1},${_escapeCsv(entry['name'])},'
+        '${_formatQuantity(entry['amount'])},'
         '${_escapeCsv(entry['unit'])}',
       );
     }
     buffer.writeln('');
 
-    buffer.writeln('Laporan Prediksi Permintaan');
-    buffer.writeln('Tanggal,Produk,Prediksi,Estimasi Kebutuhan');
-    for (final item in _controller.predictionItems) {
+    _writeSection(buffer, 'Detail Riwayat Stok Masuk Periode');
+    buffer.writeln('No,Tanggal,Nama Bahan,Jumlah,Unit');
+    if (stockHistory.isEmpty) {
+      buffer.writeln('-,Tidak ada data,-,-,-');
+    }
+    for (var index = 0; index < stockHistory.length; index++) {
+      final entry = stockHistory[index];
+      final date = _dateFormat.format(entry['date'] as DateTime);
+      buffer.writeln(
+        '${index + 1},$date,${_escapeCsv(entry['name'])},'
+        '${_formatQuantity(entry['amount'])},'
+        '${_escapeCsv(entry['unit'])}',
+      );
+    }
+    buffer.writeln('');
+
+    _writeSection(buffer, 'Rekap Prediksi Periode');
+    buffer.writeln('No,Produk,Total Prediksi,Estimasi Kebutuhan Terakhir');
+    final predictionSummary = _summarizePredictions(predictionItems);
+    if (predictionSummary.isEmpty) {
+      buffer.writeln('-,Tidak ada data prediksi pada periode ini,-,-');
+    }
+    for (var index = 0; index < predictionSummary.length; index++) {
+      final item = predictionSummary[index];
+      buffer.writeln(
+        '${index + 1},${_escapeCsv(item['product'])},'
+        '${_formatQuantity(item['prediction'])},'
+        '${_escapeCsv(item['needs'])}',
+      );
+    }
+    buffer.writeln('');
+
+    _writeSection(buffer, 'Detail Prediksi Permintaan Periode');
+    buffer.writeln('No,Tanggal,Produk,Prediksi,Estimasi Kebutuhan');
+    if (predictionItems.isEmpty) {
+      buffer.writeln('-,Tidak ada data,-,-,-');
+    }
+    for (var index = 0; index < predictionItems.length; index++) {
+      final item = predictionItems[index];
       final date = _dateFormat.format(item['date'] as DateTime);
       buffer.writeln(
-        '$date,${_escapeCsv(item['product'])},${item['prediction']},'
+        '${index + 1},$date,${_escapeCsv(item['product'])},'
+        '${_formatQuantity(item['prediction'])},'
         '${_escapeCsv(item['needs'])}',
       );
     }
     buffer.writeln('');
 
     return buffer.toString();
+  }
+
+  void _writeSection(StringBuffer buffer, String title) {
+    buffer
+      ..writeln(title)
+      ..writeln('---');
+  }
+
+  List<Map<String, dynamic>> _sortedStockItems(
+    List<Map<String, dynamic>> items,
+  ) {
+    return items.toList()..sort((a, b) {
+      final aStock = StockStatusUtils.parseStock(a['stock']);
+      final bStock = StockStatusUtils.parseStock(b['stock']);
+      final aStatus = StockStatusUtils.statusFromStock(aStock);
+      final bStatus = StockStatusUtils.statusFromStock(bStock);
+      final statusComparison = _statusOrder(
+        aStatus,
+      ).compareTo(_statusOrder(bStatus));
+      if (statusComparison != 0) return statusComparison;
+      return a['name'].toString().compareTo(b['name'].toString());
+    });
+  }
+
+  int _statusOrder(String status) {
+    switch (StockStatusUtils.normalizeStatus(status)) {
+      case StockStatusUtils.statusKritis:
+        return 0;
+      case StockStatusUtils.statusSedang:
+        return 1;
+      case StockStatusUtils.statusTersedia:
+      default:
+        return 2;
+    }
+  }
+
+  DateTime _periodStartDate(ExportPeriod period, DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    switch (period) {
+      case ExportPeriod.daily:
+        return today;
+      case ExportPeriod.biweekly:
+        return today.subtract(const Duration(days: 13));
+      case ExportPeriod.monthly:
+        return DateTime(now.year, now.month);
+    }
+  }
+
+  bool _isDateInRange(DateTime date, DateTime start, DateTime end) {
+    return !date.isBefore(start) && !date.isAfter(end);
+  }
+
+  List<Map<String, dynamic>> _summarizeStockHistory(
+    List<Map<String, dynamic>> items,
+  ) {
+    final Map<String, Map<String, dynamic>> summary = {};
+    for (final item in items) {
+      final name = item['name']?.toString() ?? '-';
+      final unit = item['unit']?.toString() ?? 'kg';
+      final key = '$name|$unit';
+      final current = summary[key];
+      if (current == null) {
+        summary[key] = {
+          'name': name,
+          'unit': unit,
+          'amount': item['amount'] as double,
+        };
+      } else {
+        current['amount'] = (current['amount'] as double) + item['amount'];
+      }
+    }
+
+    return summary.values.toList()
+      ..sort((a, b) => a['name'].toString().compareTo(b['name'].toString()));
+  }
+
+  List<Map<String, dynamic>> _summarizePredictions(
+    List<Map<String, dynamic>> items,
+  ) {
+    final Map<String, Map<String, dynamic>> summary = {};
+    for (final item in items) {
+      final product = item['product']?.toString() ?? '-';
+      final current = summary[product];
+      if (current == null) {
+        summary[product] = {
+          'product': product,
+          'prediction': item['prediction'] as double,
+          'needs': item['needs'],
+          'date': item['date'],
+        };
+      } else {
+        current['prediction'] =
+            (current['prediction'] as double) + item['prediction'];
+        if ((item['date'] as DateTime).isAfter(current['date'] as DateTime)) {
+          current['needs'] = item['needs'];
+          current['date'] = item['date'];
+        }
+      }
+    }
+
+    return summary.values.toList()..sort(
+      (a, b) => a['product'].toString().compareTo(b['product'].toString()),
+    );
   }
 
   String _escapeCsv(dynamic value) {
@@ -946,16 +1600,17 @@ class _ReportScreenState extends State<ReportScreen> {
     return text;
   }
 
+  String _formatQuantity(dynamic value) {
+    final number = StockStatusUtils.parseStock(value);
+    if (number % 1 == 0) return number.toInt().toString();
+    return number.toStringAsFixed(2).replaceFirst(RegExp(r'0$'), '');
+  }
+
   List<Map<String, dynamic>> _buildUsageBars(
     List<Map<String, dynamic>> usageSummary,
   ) {
     if (usageSummary.isEmpty) {
-      return [
-        {'label': 'Tepung', 'value': 40.0, 'color': AppColors.primaryBrown},
-        {'label': 'Gula', 'value': 28.0, 'color': AppColors.secondaryOrange},
-        {'label': 'Telur', 'value': 18.0, 'color': AppColors.secondaryBlue},
-        {'label': 'Mentega', 'value': 12.0, 'color': AppColors.secondaryGreen},
-      ];
+      return [];
     }
 
     final colors = [
@@ -971,6 +1626,7 @@ class _ReportScreenState extends State<ReportScreen> {
       return {
         'label': item['label'] as String,
         'value': item['value'] as double,
+        'unit': item['unit']?.toString() ?? 'kg',
         'color': colors[index % colors.length],
       };
     }).toList();

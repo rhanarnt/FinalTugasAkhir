@@ -78,7 +78,7 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.3),
+                                color: Colors.white.withValues(alpha: 0.3),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
@@ -363,200 +363,479 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
     final maxStock = _controller.maxStock;
     final stockPercentage = (product.stock / maxStock * 100).toInt();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.bgWhite,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [AppColors.shadowLight],
-      ),
+    return InkWell(
+      onTap: () => _showProductDetail(product),
+      borderRadius: BorderRadius.circular(16),
       child: Column(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: _controller
-                      .getStatusColor(product.status)
-                      .withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  _controller.getCategoryIcon(product.category),
-                  color: _controller.getStatusColor(product.status),
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.bgWhite,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [AppColors.shadowLight],
+            ),
+            child: Column(
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      product.name,
-                      style: AppTextStyles.labelLarge.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: _controller
+                            .getStatusColor(product.status)
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      child: Icon(
+                        _controller.getCategoryIcon(product.category),
+                        color: _controller.getStatusColor(product.status),
+                        size: 28,
+                      ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryBrown.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            product.category,
-                            style: AppTextStyles.labelSmall.copyWith(
-                              color: AppColors.primaryBrown,
-                              fontWeight: FontWeight.w600,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product.name,
+                            style: AppTextStyles.labelLarge.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _controller.formatPrice(product.price),
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w600,
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryBrown.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  product.category,
+                                  style: AppTextStyles.labelSmall.copyWith(
+                                    color: AppColors.primaryBrown,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _controller.formatPrice(product.price),
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _controller
+                            .getStatusColor(product.status)
+                            .withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _controller
+                              .getStatusColor(product.status)
+                              .withValues(alpha: 0.3),
+                          width: 1,
                         ),
-                      ],
+                      ),
+                      child: Text(
+                        _controller.getStatusLabel(product.status),
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: _controller.getStatusColor(product.status),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _controller
-                      .getStatusColor(product.status)
-                      .withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _controller
-                        .getStatusColor(product.status)
-                        .withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  _controller.getStatusLabel(product.status),
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: _controller.getStatusColor(product.status),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(height: 1, color: AppColors.grey200),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Stok Tersedia',
-                    style: AppTextStyles.labelSmall.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${product.stock} ${product.unit}',
-                    style: AppTextStyles.labelLarge.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 12),
+                Container(height: 1, color: AppColors.grey200),
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Kapasitas',
+                          'Stok Tersedia',
                           style: AppTextStyles.labelSmall.copyWith(
                             color: AppColors.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
+                        const SizedBox(height: 4),
                         Text(
-                          '$stockPercentage%',
-                          style: AppTextStyles.labelSmall.copyWith(
+                          '${product.stock} ${product.unit}',
+                          style: AppTextStyles.labelLarge.copyWith(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: product.stock / maxStock,
-                        minHeight: 6,
-                        backgroundColor: AppColors.grey200,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          _controller.getStatusColor(product.status),
-                        ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Kapasitas',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                '$stockPercentage%',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              value: product.stock / maxStock,
+                              minHeight: 6,
+                              backgroundColor: AppColors.grey200,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _controller.getStatusColor(product.status),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBrown.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.info_outline_rounded,
+                        color: AppColors.primaryBrown,
+                        size: 20,
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${product.name} - Detail'),
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBrown.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.arrow_forward_ios,
-                    color: AppColors.primaryBrown,
-                    size: 16,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
     );
+  }
+
+  void _showProductDetail(Product product) {
+    final maxStock = _controller.maxStock;
+    final stockPercentage =
+        maxStock == 0 ? 0 : (product.stock / maxStock * 100).round();
+    final statusColor = _controller.getStatusColor(product.status);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          margin: const EdgeInsets.all(12),
+          padding: EdgeInsets.only(
+            left: 18,
+            right: 18,
+            top: 12,
+            bottom: 18 + MediaQuery.of(context).padding.bottom,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.bgWhite,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [AppColors.shadowMedium],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.grey200,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      _controller.getCategoryIcon(product.category),
+                      color: statusColor,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.name,
+                          style: AppTextStyles.headlineSmall.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'ID Produk: ${product.id}',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _controller.getStatusLabel(product.status),
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Container(height: 1, color: AppColors.grey200),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _buildDetailTile(
+                    icon: Icons.category_outlined,
+                    label: 'Kategori',
+                    value: product.category,
+                  ),
+                  _buildDetailTile(
+                    icon: Icons.sell_outlined,
+                    label: 'Harga',
+                    value: _formatRupiah(product.price),
+                  ),
+                  _buildDetailTile(
+                    icon: Icons.inventory_2_outlined,
+                    label: 'Stok',
+                    value: '${product.stock} ${product.unit}',
+                  ),
+                  _buildDetailTile(
+                    icon: Icons.straighten_outlined,
+                    label: 'Satuan',
+                    value: product.unit,
+                  ),
+                  _buildDetailTile(
+                    icon: Icons.speed_outlined,
+                    label: 'Kapasitas',
+                    value: '$stockPercentage%',
+                  ),
+                  _buildDetailTile(
+                    icon: Icons.verified_outlined,
+                    label: 'Status',
+                    value: _controller.getStatusLabel(product.status),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: maxStock == 0 ? 0 : product.stock / maxStock,
+                  minHeight: 8,
+                  backgroundColor: AppColors.grey200,
+                  valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: statusColor.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Text(
+                  _stockRecommendation(product),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                      label: const Text('Tutup'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).pushNamed('/transaction');
+                      },
+                      icon: const Icon(Icons.add_shopping_cart_rounded),
+                      label: const Text('Tambah Stok'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.statusSuccess,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailTile({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return SizedBox(
+      width: (MediaQuery.of(context).size.width - 60) / 2,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.bgLight,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.grey200),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.primaryBrown),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatRupiah(int price) {
+    final text = price.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < text.length; i++) {
+      final reverseIndex = text.length - i;
+      buffer.write(text[i]);
+      if (reverseIndex > 1 && reverseIndex % 3 == 1) {
+        buffer.write('.');
+      }
+    }
+    return 'Rp $buffer';
+  }
+
+  String _stockRecommendation(Product product) {
+    switch (product.status) {
+      case 'kritis':
+        return 'Stok kritis. Disarankan segera tambah stok agar produksi tidak terganggu.';
+      case 'sedang':
+        return 'Stok mulai menipis. Pantau pemakaian dan siapkan pembelian berikutnya.';
+      default:
+        return 'Stok aman. Produk masih cukup untuk kebutuhan operasional.';
+    }
   }
 
   @override

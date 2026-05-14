@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:finalproject/services/ml_service.dart';
+import 'package:finalproject/utils/stock_status.dart';
 import 'package:flutter/material.dart';
 
 class ReportController extends ChangeNotifier {
@@ -37,15 +38,15 @@ class ReportController extends ChangeNotifier {
         MLService.getReportStock(),
         MLService.getReportStockIn(),
         MLService.getReportPredictions(),
-        MLService.getReportCritical(),
         MLService.getProducts(),
+        MLService.getDashboardSummary(),
       ]);
 
       final stockResponse = results[0] as Map<String, dynamic>;
       final stockInResponse = results[1] as Map<String, dynamic>;
       final predictionResponse = results[2] as Map<String, dynamic>;
-      final criticalResponse = results[3] as Map<String, dynamic>;
-      final productsResponse = results[4];
+      final productsResponse = results[3];
+      final dashboardSummary = results[4] as Map<String, dynamic>;
 
       if (stockResponse['status'] != true) {
         errorMessage = stockResponse['message']?.toString();
@@ -65,18 +66,22 @@ class ReportController extends ChangeNotifier {
         _applyPredictions(predictionResponse['data']);
       }
 
-      if (criticalResponse['status'] != true) {
-        errorMessage ??= criticalResponse['message']?.toString();
-      } else {
-        _applyCriticalItems(criticalResponse['data']);
-      }
-
       if (productsResponse is List) {
         _productCount = productsResponse.length;
+        _applyCriticalProducts(productsResponse);
+      } else {
+        _productCount = 0;
+        criticalItems.clear();
+      }
+
+      if (dashboardSummary['status'] != true) {
+        errorMessage ??= dashboardSummary['message']?.toString();
+        usageSummary.clear();
+      } else {
+        _applyUsageSummary(dashboardSummary['penggunaan_bahan']);
       }
 
       _rebuildSummary();
-      _rebuildUsageSummary();
       _rebuildDemandTrend();
     } catch (e) {
       errorMessage = 'Gagal memuat laporan: $e';
@@ -150,17 +155,50 @@ class ReportController extends ChangeNotifier {
     }
   }
 
-  void _applyCriticalItems(dynamic data) {
+  void _applyCriticalProducts(List<dynamic> products) {
     criticalItems.clear();
-    if (data is! List) return;
-    for (final item in data) {
+
+    for (final item in products) {
+      if (item is! Map) continue;
+
+      final stock = StockStatusUtils.parseStock(item['current_stock']);
+      final status = StockStatusUtils.statusFromStock(stock);
+      if (status != StockStatusUtils.statusKritis) continue;
+
+      final category = item['category']?.toString().toLowerCase() ?? '';
+      final unit =
+          item['unit']?.toString() ?? (category == 'barang' ? 'pcs' : 'kg');
       criticalItems.add({
-        'name': item['nama_bahan']?.toString() ?? '-',
-        'stock': _toDouble(item['stok']),
-        'status': item['status']?.toString() ?? 'Kritis',
-        'unit': item['unit']?.toString() ?? 'kg',
+        'name': item['name']?.toString() ?? '-',
+        'stock': stock,
+        'status': StockStatusUtils.label(status),
+        'unit': unit,
       });
     }
+
+    criticalItems.sort(
+      (a, b) => a['name'].toString().compareTo(b['name'].toString()),
+    );
+  }
+
+  void _applyUsageSummary(dynamic data) {
+    usageSummary.clear();
+    if (data is! List) return;
+
+    for (final item in data) {
+      if (item is! Map) continue;
+
+      final label = item['nama_bahan']?.toString() ?? '-';
+      final total = _toDouble(item['total_digunakan']);
+      final unit = item['satuan']?.toString() ?? 'kg';
+      if (total <= 0) continue;
+
+      usageSummary.add({'label': label, 'value': total, 'unit': unit});
+    }
+
+    usageSummary.sort(
+      (a, b) => (b['value'] as double).compareTo(a['value'] as double),
+    );
   }
 
   void _rebuildSummary() {
@@ -170,35 +208,17 @@ class ReportController extends ChangeNotifier {
     totalKritis = criticalItems.length;
   }
 
-  void _rebuildUsageSummary() {
-    final Map<String, double> totals = {};
-    for (final item in stockHistory) {
-      final name = item['name'] as String;
-      final amount = item['amount'] as double;
-      totals[name] = (totals[name] ?? 0) + amount;
-    }
-
-    final sorted =
-        totals.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-
-    usageSummary
-      ..clear()
-      ..addAll(
-        sorted
-            .take(4)
-            .map((entry) => {'label': entry.key, 'value': entry.value}),
-      );
-  }
-
   void _rebuildDemandTrend() {
     final sorted =
         predictionItems.toList()..sort(
           (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime),
         );
+    final latestItems =
+        sorted.length > 7 ? sorted.skip(sorted.length - 7) : sorted;
 
     demandTrend
       ..clear()
-      ..addAll(sorted.take(7).map((entry) => (entry['prediction'] as double)));
+      ..addAll(latestItems.map((entry) => (entry['prediction'] as double)));
   }
 
   double _toDouble(dynamic value) {

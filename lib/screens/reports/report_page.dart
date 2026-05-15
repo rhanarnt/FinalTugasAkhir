@@ -48,6 +48,7 @@ class _ReportScreenState extends State<ReportScreen> {
   final DateFormat _fileDateFormat = DateFormat('yyyyMMdd_HHmmss');
   final ScrollController _stockTableScrollController = ScrollController();
   final ScrollController _stockHistoryScrollController = ScrollController();
+  final ScrollController _predictionScrollController = ScrollController();
 
   late final ReportController _controller;
   String? _lastExportPath;
@@ -72,10 +73,6 @@ class _ReportScreenState extends State<ReportScreen> {
     final width = MediaQuery.of(context).size.width;
     final cardWidth = (width - 48) / 2;
 
-    final usageBars = _buildUsageBars(_controller.usageSummary);
-    final usagePie = _buildUsagePie(usageBars);
-    final List<double> demandTrend = _controller.demandTrend;
-
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       appBar: AppBar(
@@ -95,6 +92,10 @@ class _ReportScreenState extends State<ReportScreen> {
               _controller.predictionItems.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
+
+          final usageBars = _buildUsageBars(_controller.usageSummary);
+          final usagePie = _buildUsagePie(usageBars);
+          final List<double> demandTrend = _controller.demandTrend;
 
           return RefreshIndicator(
             onRefresh: () => _controller.loadReports(),
@@ -159,15 +160,27 @@ class _ReportScreenState extends State<ReportScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Laporan Stok Bahan'),
+                  _buildSectionTitle(
+                    'Laporan Stok Bahan',
+                    icon: Icons.inventory_2_outlined,
+                    subtitle: 'Pantau stok tersedia dan status tiap bahan.',
+                  ),
                   const SizedBox(height: 12),
                   _buildStockTable(_controller.stockItems),
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Riwayat Stok Masuk'),
+                  _buildSectionTitle(
+                    'Riwayat Stok Masuk',
+                    icon: Icons.playlist_add_check_rounded,
+                    subtitle: 'Catatan bahan yang baru ditambahkan.',
+                  ),
                   const SizedBox(height: 12),
                   _buildStockHistory(_controller.stockHistory),
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Laporan Prediksi Permintaan'),
+                  _buildSectionTitle(
+                    'Laporan Prediksi Permintaan',
+                    icon: Icons.auto_graph_rounded,
+                    subtitle: 'Ringkasan prediksi kebutuhan produk terbaru.',
+                  ),
                   const SizedBox(height: 12),
                   _buildPredictionList(_controller.predictionItems),
                   const SizedBox(height: 24),
@@ -291,251 +304,374 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary),
+  Widget _buildSectionTitle(String title, {IconData? icon, String? subtitle}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (icon != null) ...[
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.bgWhite,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.grey200),
+            ),
+            child: Icon(icon, size: 18, color: AppColors.primaryBrown),
+          ),
+          const SizedBox(width: 10),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTextStyles.headlineSmall.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildStockTable(List<Map<String, dynamic>> items) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgWhite,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [AppColors.shadowLight],
-      ),
-      child:
-          items.isEmpty
-              ? Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Data stok bahan belum tersedia.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              )
-              : SizedBox(
-                height: _sectionMaxHeight(),
-                child: Scrollbar(
-                  thumbVisibility: true,
-                  controller: _stockTableScrollController,
-                  child: SingleChildScrollView(
-                    controller: _stockTableScrollController,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        columns: const [
-                          DataColumn(label: Text('Nama Bahan')),
-                          DataColumn(label: Text('Stok Tersedia')),
-                          DataColumn(label: Text('Status')),
-                        ],
-                        rows:
-                            items.map((item) {
-                              final stockValue = StockStatusUtils.parseStock(
-                                item['stock'],
-                              );
-                              final statusKey =
-                                  StockStatusUtils.statusFromStock(stockValue);
-                              final statusColor = StockStatusUtils.color(
-                                statusKey,
-                              );
-                              final statusLabel = StockStatusUtils.label(
-                                statusKey,
-                              );
-                              final unit = item['unit']?.toString() ?? 'kg';
+    if (items.isEmpty) {
+      return _buildReportEmptyState(
+        icon: Icons.inventory_2_outlined,
+        message: 'Data stok bahan belum tersedia.',
+      );
+    }
 
-                              return DataRow(
-                                cells: [
-                                  DataCell(Text(item['name'] as String)),
-                                  DataCell(Text('${item['stock']} $unit')),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: statusColor.withValues(
-                                          alpha: 0.15,
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        statusLabel,
-                                        style: AppTextStyles.labelSmall
-                                            .copyWith(
-                                              color: statusColor,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                      ),
-                    ),
+    final sortedItems = _sortedStockItems(items);
+
+    return SizedBox(
+      height: _reportListHeight(sortedItems.length, itemHeight: 92),
+      child: Scrollbar(
+        thumbVisibility: true,
+        controller: _stockTableScrollController,
+        child: ListView.separated(
+          controller: _stockTableScrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          itemCount: sortedItems.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final item = sortedItems[index];
+            final stockValue = StockStatusUtils.parseStock(item['stock']);
+            final statusKey = StockStatusUtils.statusFromStock(stockValue);
+            final statusColor = StockStatusUtils.color(statusKey);
+            final statusLabel = StockStatusUtils.label(statusKey);
+            final unit = item['unit']?.toString() ?? 'kg';
+            final minimumStock = StockStatusUtils.parseStock(item['min_stock']);
+
+            return _buildReportItemCard(
+              icon: Icons.inventory_2_outlined,
+              iconColor: statusColor,
+              title: item['name']?.toString() ?? '-',
+              subtitle: 'Minimum ${_formatQuantity(minimumStock)} $unit',
+              trailing: _buildStatusBadge(statusLabel, statusColor),
+              footer: Row(
+                children: [
+                  _buildMetricPill(
+                    label: 'Stok',
+                    value: '${_formatQuantity(stockValue)} $unit',
+                    color: AppColors.primaryBrown,
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  _buildMetricPill(
+                    label: 'Status',
+                    value: statusLabel,
+                    color: statusColor,
+                  ),
+                ],
               ),
+            );
+          },
+        ),
+      ),
     );
   }
 
   Widget _buildStockHistory(List<Map<String, dynamic>> items) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.bgWhite,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [AppColors.shadowLight],
-      ),
-      child:
-          items.isEmpty
-              ? Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  'Belum ada riwayat stok masuk.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              )
-              : SizedBox(
-                height: _sectionMaxHeight(),
-                child: Scrollbar(
-                  thumbVisibility: true,
-                  controller: _stockHistoryScrollController,
-                  child: ListView.separated(
-                    controller: _stockHistoryScrollController,
-                    padding: EdgeInsets.zero,
-                    itemCount: items.length,
-                    separatorBuilder: (_, __) => const Divider(height: 8),
-                    itemBuilder: (context, index) {
-                      final entry = items[index];
+    if (items.isEmpty) {
+      return _buildReportEmptyState(
+        icon: Icons.playlist_add_check_rounded,
+        message: 'Belum ada riwayat stok masuk.',
+      );
+    }
 
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                        ),
-                        leading: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryBrown.withValues(
-                              alpha: 0.12,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.add_circle_outline,
-                            color: AppColors.primaryBrown,
-                          ),
-                        ),
-                        title: Text(
-                          entry['name'] as String,
-                          style: AppTextStyles.labelLarge,
-                        ),
-                        subtitle: Text(
-                          _dateFormat.format(entry['date'] as DateTime),
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                        trailing: Text(
-                          '+${entry['amount']} ${entry['unit'] ?? 'kg'}',
-                          style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.statusSuccess,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+    return SizedBox(
+      height: _reportListHeight(items.length, itemHeight: 86),
+      child: Scrollbar(
+        thumbVisibility: true,
+        controller: _stockHistoryScrollController,
+        child: ListView.separated(
+          controller: _stockHistoryScrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final entry = items[index];
+            final amount = StockStatusUtils.parseStock(entry['amount']);
+            final unit = entry['unit']?.toString() ?? 'kg';
+
+            return _buildReportItemCard(
+              icon: Icons.add_rounded,
+              iconColor: AppColors.statusSuccess,
+              title: entry['name']?.toString() ?? '-',
+              subtitle: _dateFormat.format(entry['date'] as DateTime),
+              trailing: Text(
+                '+${_formatQuantity(amount)} $unit',
+                style: AppTextStyles.labelLarge.copyWith(
+                  color: AppColors.statusSuccess,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
+              footer: Row(
+                children: [
+                  _buildMetricPill(
+                    label: 'Jumlah',
+                    value: '${_formatQuantity(amount)} $unit',
+                    color: AppColors.statusSuccess,
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
   Widget _buildPredictionList(List<Map<String, dynamic>> items) {
-    final listHeight = items.length * 76.0;
-    final maxHeight = _sectionMaxHeight();
-    final height = listHeight < maxHeight ? listHeight : maxHeight;
+    if (items.isEmpty) {
+      return _buildReportEmptyState(
+        icon: Icons.auto_graph_rounded,
+        message: 'Belum ada data prediksi.',
+      );
+    }
 
+    return SizedBox(
+      height: _reportListHeight(items.length, itemHeight: 104),
+      child: Scrollbar(
+        thumbVisibility: true,
+        controller: _predictionScrollController,
+        child: ListView.separated(
+          controller: _predictionScrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final prediction = StockStatusUtils.parseStock(item['prediction']);
+
+            return _buildReportItemCard(
+              icon: Icons.trending_up_rounded,
+              iconColor: AppColors.secondaryBlue,
+              title: item['product']?.toString() ?? '-',
+              subtitle: _dateFormat.format(item['date'] as DateTime),
+              trailing: Text(
+                '${_formatQuantity(prediction)} unit',
+                style: AppTextStyles.labelLarge.copyWith(
+                  color: AppColors.primaryBrown,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              footer: Text(
+                item['needs']?.toString() ?? '-',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  double _reportListHeight(int itemCount, {required double itemHeight}) {
+    final contentHeight = (itemCount * itemHeight) + ((itemCount - 1) * 10);
+    final maxHeight = _sectionMaxHeight();
+    if (contentHeight < itemHeight) return itemHeight;
+    return contentHeight < maxHeight ? contentHeight : maxHeight;
+  }
+
+  Widget _buildReportEmptyState({
+    required IconData icon,
+    required String message,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 22),
       decoration: BoxDecoration(
         color: AppColors.bgWhite,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [AppColors.shadowLight],
+        border: Border.all(color: AppColors.grey200),
       ),
-      child:
-          items.isEmpty
-              ? Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  'Belum ada data prediksi.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.bgLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppColors.textTertiary, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReportItemCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required Widget trailing,
+    required Widget footer,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bgWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.grey200.withValues(alpha: 0.8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              )
-              : SizedBox(
-                height: height,
-                child: Scrollbar(
-                  child: ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: items.length,
-                    separatorBuilder:
-                        (context, index) =>
-                            const Divider(height: 1, indent: 56),
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                        ),
-                        leading: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.secondaryBlue.withValues(
-                              alpha: 0.12,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.trending_up,
-                            color: AppColors.secondaryBlue,
-                          ),
-                        ),
-                        title: Text(
-                          item['product'] as String,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.labelLarge,
-                        ),
-                        subtitle: Text(
-                          '${item['needs']} - ${_dateFormat.format(item['date'] as DateTime)}',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                        trailing: Text(
-                          '${_formatQuantity(item['prediction'])} unit',
-                          style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.primaryBrown,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                child: Icon(icon, color: iconColor, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.labelLarge.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 10),
+              trailing,
+            ],
+          ),
+          const SizedBox(height: 12),
+          footer,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.labelSmall.copyWith(
+          color: color,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricPill({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Flexible(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: RichText(
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          text: TextSpan(
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textTertiary,
+              letterSpacing: 0,
+            ),
+            children: [
+              TextSpan(text: '$label  '),
+              TextSpan(
+                text: value,
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -553,7 +689,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   ? _buildEmptyChartState(
                     icon: Icons.inventory_2_outlined,
                     message:
-                        'Belum ada data penggunaan barang atau bahan dari API untuk membuat grafik.',
+                        'Belum ada data penggunaan bahan. Jalankan prediksi dan simpan hasil produksi agar grafik terisi.',
                   )
                   : SizedBox(
                     height: 180,
@@ -626,7 +762,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   ? _buildEmptyChartState(
                     icon: Icons.pie_chart_outline_rounded,
                     message:
-                        'Belum ada data penggunaan barang atau bahan dari API untuk menghitung item paling sering digunakan.',
+                        'Belum ada data bahan dari prediksi untuk menghitung bahan yang paling sering digunakan.',
                   )
                   : SizedBox(
                     height: 200,
@@ -1658,6 +1794,7 @@ class _ReportScreenState extends State<ReportScreen> {
   void dispose() {
     _stockTableScrollController.dispose();
     _stockHistoryScrollController.dispose();
+    _predictionScrollController.dispose();
     _controller.dispose();
     super.dispose();
   }

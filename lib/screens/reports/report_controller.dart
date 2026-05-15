@@ -14,6 +14,7 @@ class ReportController extends ChangeNotifier {
   final List<Map<String, dynamic>> criticalItems = [];
   final List<Map<String, dynamic>> usageSummary = [];
   final List<double> demandTrend = [];
+  final Map<String, List<Map<String, dynamic>>> _recipeIngredients = {};
 
   int totalProduk = 0;
   int totalBahan = 0;
@@ -40,6 +41,7 @@ class ReportController extends ChangeNotifier {
         MLService.getReportPredictions(),
         MLService.getProducts(),
         MLService.getDashboardSummary(),
+        MLService.getRecipes(),
       ]);
 
       final stockResponse = results[0] as Map<String, dynamic>;
@@ -47,6 +49,7 @@ class ReportController extends ChangeNotifier {
       final predictionResponse = results[2] as Map<String, dynamic>;
       final productsResponse = results[3];
       final dashboardSummary = results[4] as Map<String, dynamic>;
+      final recipesResponse = results[5];
 
       if (stockResponse['status'] != true) {
         errorMessage = stockResponse['message']?.toString();
@@ -74,11 +77,21 @@ class ReportController extends ChangeNotifier {
         criticalItems.clear();
       }
 
+      if (recipesResponse is List) {
+        _applyRecipes(recipesResponse);
+      } else {
+        _recipeIngredients.clear();
+      }
+
       if (dashboardSummary['status'] != true) {
         errorMessage ??= dashboardSummary['message']?.toString();
         usageSummary.clear();
       } else {
         _applyUsageSummary(dashboardSummary['penggunaan_bahan']);
+      }
+
+      if (usageSummary.isEmpty) {
+        _rebuildUsageSummaryFromPredictions();
       }
 
       _rebuildSummary();
@@ -181,6 +194,37 @@ class ReportController extends ChangeNotifier {
     );
   }
 
+  void _applyRecipes(List<dynamic> recipes) {
+    _recipeIngredients.clear();
+
+    for (final recipe in recipes) {
+      if (recipe is! Map) continue;
+
+      final recipeName = recipe['recipe_name']?.toString() ?? '';
+      if (recipeName.isEmpty) continue;
+
+      final ingredients = recipe['ingredients'];
+      if (ingredients is! List) continue;
+
+      _recipeIngredients[_nameKey(recipeName)] =
+          ingredients
+              .whereType<Map>()
+              .map(
+                (ingredient) => {
+                  'label': ingredient['product_name']?.toString() ?? '-',
+                  'value': _toDouble(ingredient['quantity_needed']),
+                  'unit': _normalizeUnit(ingredient['unit']?.toString() ?? ''),
+                },
+              )
+              .where(
+                (ingredient) =>
+                    (ingredient['label'] as String).isNotEmpty &&
+                    (ingredient['value'] as double) > 0,
+              )
+              .toList();
+    }
+  }
+
   void _applyUsageSummary(dynamic data) {
     usageSummary.clear();
     if (data is! List) return;
@@ -199,6 +243,134 @@ class ReportController extends ChangeNotifier {
     usageSummary.sort(
       (a, b) => (b['value'] as double).compareTo(a['value'] as double),
     );
+  }
+
+  void _rebuildUsageSummaryFromPredictions() {
+    final Map<String, Map<String, dynamic>> totals = {};
+
+    for (final item in predictionItems) {
+      final needs = item['needs']?.toString() ?? '';
+      final ingredients =
+          needs.isEmpty || needs == 'Belum tersedia'
+              ? _estimateUsageFromRecipe(item)
+              : _parseEstimatedNeeds(needs);
+
+      for (final ingredient in ingredients) {
+        final label = ingredient['label'] as String;
+        final normalizedQuantity = _normalizeUsageQuantity(
+          value: ingredient['value'] as double,
+          unit: ingredient['unit'] as String,
+        );
+        final unit = normalizedQuantity['unit'] as String;
+        final value = normalizedQuantity['value'] as double;
+        if (label.isEmpty || value <= 0) continue;
+
+        final key = '${label.toLowerCase()}|$unit';
+        final current = totals[key];
+        if (current == null) {
+          totals[key] = {'label': label, 'value': value, 'unit': unit};
+        } else {
+          current['value'] = (current['value'] as double) + value;
+        }
+      }
+    }
+
+    usageSummary
+      ..clear()
+      ..addAll(totals.values);
+
+    usageSummary.sort(
+      (a, b) => (b['value'] as double).compareTo(a['value'] as double),
+    );
+
+    if (usageSummary.length > 5) {
+      usageSummary.removeRange(5, usageSummary.length);
+    }
+  }
+
+  List<Map<String, dynamic>> _parseEstimatedNeeds(String text) {
+    final entries = <Map<String, dynamic>>[];
+    final normalized = text.trim();
+    if (normalized.isEmpty || normalized == 'Belum tersedia') return entries;
+
+    for (final part in normalized.split(',')) {
+      final separatorIndex = part.indexOf(':');
+      if (separatorIndex <= 0) continue;
+
+      final label = part.substring(0, separatorIndex).trim();
+      final quantityText = part.substring(separatorIndex + 1).trim();
+      final match = RegExp(
+        r'^([0-9]+(?:[.,][0-9]+)?)\s*([a-zA-Z]+)?',
+      ).firstMatch(quantityText);
+      if (match == null) continue;
+
+      final value = _toDouble(match.group(1)?.replaceAll(',', '.'));
+      final unit = _normalizeUnit(match.group(2) ?? 'unit');
+      entries.add({'label': label, 'value': value, 'unit': unit});
+    }
+
+    return entries;
+  }
+
+  List<Map<String, dynamic>> _estimateUsageFromRecipe(
+    Map<String, dynamic> prediction,
+  ) {
+    final productName = prediction['product']?.toString() ?? '';
+    final ingredients = _recipeIngredients[_nameKey(productName)];
+    if (ingredients == null || ingredients.isEmpty) return [];
+
+    final predictedQuantity = _toDouble(prediction['prediction']);
+    if (predictedQuantity <= 0) return [];
+
+    return ingredients.map((ingredient) {
+      return {
+        'label': ingredient['label'],
+        'value': (ingredient['value'] as double) * predictedQuantity,
+        'unit': ingredient['unit'],
+      };
+    }).toList();
+  }
+
+  String _normalizeUnit(String unit) {
+    final normalized = unit.trim().toLowerCase();
+    if (['g', 'gr', 'gram', 'grams'].contains(normalized)) return 'gr';
+    if (['kg', 'kilogram', 'kilograms'].contains(normalized)) return 'kg';
+    if (['ml', 'mili', 'mililiter', 'milliliter'].contains(normalized)) {
+      return 'ml';
+    }
+    if (['l', 'lt', 'ltr', 'liter', 'litre'].contains(normalized)) return 'l';
+    if (['pcs', 'piece', 'pieces'].contains(normalized)) return 'pcs';
+    if (['butir'].contains(normalized)) return 'butir';
+    return normalized.isEmpty ? 'unit' : normalized;
+  }
+
+  Map<String, dynamic> _normalizeUsageQuantity({
+    required double value,
+    required String unit,
+  }) {
+    switch (_normalizeUnit(unit)) {
+      case 'gr':
+        return {'value': value / 1000, 'unit': 'kg'};
+      case 'ml':
+        return {'value': value / 1000, 'unit': 'l'};
+      default:
+        return {'value': value, 'unit': _normalizeUnit(unit)};
+    }
+  }
+
+  String _nameKey(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(
+          RegExp(
+            r'\s+\d+([,.]\d+)?\s*(kg|kilogram|g|gr|gram|ml|l|liter|ltr|butir|pcs)\b',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .trim();
   }
 
   void _rebuildSummary() {

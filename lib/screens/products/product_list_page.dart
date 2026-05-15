@@ -571,17 +571,17 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          margin: const EdgeInsets.all(12),
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           padding: EdgeInsets.only(
-            left: 18,
-            right: 18,
-            top: 12,
-            bottom: 18 + MediaQuery.of(context).padding.bottom,
+            left: 20,
+            right: 20,
+            top: 10,
+            bottom: 16 + MediaQuery.of(context).padding.bottom,
           ),
           decoration: BoxDecoration(
             color: AppColors.bgWhite,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [AppColors.shadowMedium],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [AppColors.shadowLight],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -592,26 +592,26 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.grey200,
+                    color: AppColors.grey300,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
                       _controller.getCategoryIcon(product.category),
                       color: statusColor,
-                      size: 28,
+                      size: 26,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -636,14 +636,15 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                      horizontal: 9,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(8),
+                      color: statusColor.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       _controller.getStatusLabel(product.status),
@@ -655,12 +656,8 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-              Container(height: 1, color: AppColors.grey200),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
+              const SizedBox(height: 20),
+              _buildDetailGrid(
                 children: [
                   _buildDetailTile(
                     icon: Icons.category_outlined,
@@ -694,25 +691,48 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Text(
+                    'Kapasitas stok',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textTertiary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '$stockPercentage%',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(999),
                 child: LinearProgressIndicator(
                   value: maxStock == 0 ? 0 : product.stock / maxStock,
-                  minHeight: 8,
+                  minHeight: 7,
                   backgroundColor: AppColors.grey200,
                   valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 11,
+                ),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
+                  color: statusColor.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: statusColor.withValues(alpha: 0.18),
+                    color: statusColor.withValues(alpha: 0.14),
                   ),
                 ),
                 child: Text(
@@ -723,7 +743,7 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               Row(
                 children: [
                   Expanded(
@@ -732,9 +752,11 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                       icon: const Icon(Icons.close_rounded),
                       label: const Text('Tutup'),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        foregroundColor: AppColors.textSecondary,
+                        side: const BorderSide(color: AppColors.grey300),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                     ),
@@ -751,9 +773,10 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.statusSuccess,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                     ),
@@ -767,49 +790,78 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
     );
   }
 
+  Widget _buildDetailGrid({required List<Widget> children}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 10.0;
+        final tileWidth = (constraints.maxWidth - spacing) / 2;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children:
+              children.map((child) {
+                return SizedBox(width: tileWidth, child: child);
+              }).toList(),
+        );
+      },
+    );
+  }
+
   Widget _buildDetailTile({
     required IconData icon,
     required String label,
     required String value,
   }) {
-    return SizedBox(
-      width: (MediaQuery.of(context).size.width - 60) / 2,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.bgLight,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.grey200),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: AppColors.primaryBrown),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: AppTextStyles.labelSmall.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.labelSmall.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+    return Container(
+      constraints: const BoxConstraints(minHeight: 68),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.bgWhite,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.grey200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.bgLight,
+              borderRadius: BorderRadius.circular(10),
             ),
-          ],
-        ),
+            child: Icon(icon, size: 17, color: AppColors.primaryBrown),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textTertiary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.labelMedium.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

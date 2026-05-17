@@ -5,7 +5,7 @@ class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://10.112.239.23:5000';
+  static const String baseUrl = 'http://192.168.1.72:5000';
 
   static const int timeoutSeconds = 30;
 
@@ -270,12 +270,14 @@ class MLService {
         return jsonDecode(response.body);
       }
 
+      print('Report request failed [$path]: ${response.statusCode}');
       return {
         'status': false,
         'message': 'Server error: ${response.statusCode}',
         'data': [],
       };
     } catch (e) {
+      print('Report request error [$path]: $e');
       return {'status': false, 'message': 'Connection error: $e', 'data': []};
     }
   }

@@ -691,63 +691,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     message:
                         'Belum ada data penggunaan bahan. Jalankan prediksi dan simpan hasil produksi agar grafik terisi.',
                   )
-                  : SizedBox(
-                    height: 180,
-                    child: BarChart(
-                      BarChartData(
-                        borderData: FlBorderData(show: false),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          topTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: 1,
-                              getTitlesWidget: (value, meta) {
-                                if (value % 1 != 0) {
-                                  return const SizedBox.shrink();
-                                }
-                                if (value < 0 || value >= usageBars.length) {
-                                  return const SizedBox.shrink();
-                                }
-
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(
-                                    usageBars[value.toInt()]['label'] as String,
-                                    style: AppTextStyles.labelSmall.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        barGroups:
-                            usageBars.asMap().entries.map((entry) {
-                              return BarChartGroupData(
-                                x: entry.key,
-                                barRods: [
-                                  BarChartRodData(
-                                    toY: entry.value['value'] as double,
-                                    color: entry.value['color'] as Color,
-                                    width: 18,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                      ),
-                    ),
-                  ),
+                  : _buildUsageBarChart(usageBars),
         ),
         const SizedBox(height: 16),
         _buildChartCard(
@@ -792,6 +736,135 @@ class _ReportScreenState extends State<ReportScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildUsageBarChart(List<Map<String, dynamic>> usageBars) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minChartWidth = usageBars.length * 76.0;
+        final chartWidth =
+            minChartWidth > constraints.maxWidth
+                ? minChartWidth
+                : constraints.maxWidth;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: chartWidth,
+            height: 250,
+            child: BarChart(
+              BarChartData(
+                borderData: FlBorderData(show: false),
+                gridData: FlGridData(
+                  getDrawingHorizontalLine:
+                      (_) => FlLine(
+                        color: AppColors.grey200.withValues(alpha: 0.7),
+                        strokeWidth: 1,
+                      ),
+                  getDrawingVerticalLine:
+                      (_) => FlLine(
+                        color: AppColors.grey200.withValues(alpha: 0.7),
+                        strokeWidth: 1,
+                      ),
+                ),
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    tooltipBgColor: AppColors.textPrimary,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final item = usageBars[group.x.toInt()];
+                      return BarTooltipItem(
+                        '${item['label']}\n${_formatQuantity(rod.toY)} ${item['unit']}',
+                        AppTextStyles.labelSmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 1,
+                      reservedSize: 72,
+                      getTitlesWidget: (value, meta) {
+                        if (value % 1 != 0) {
+                          return const SizedBox.shrink();
+                        }
+                        if (value < 0 || value >= usageBars.length) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          space: 10,
+                          child: SizedBox(
+                            width: 68,
+                            child: Text(
+                              _compactUsageLabel(
+                                usageBars[value.toInt()]['label'] as String,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w700,
+                                height: 1.15,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                groupsSpace: 22,
+                barGroups:
+                    usageBars.asMap().entries.map((entry) {
+                      return BarChartGroupData(
+                        x: entry.key,
+                        barRods: [
+                          BarChartRodData(
+                            toY: entry.value['value'] as double,
+                            color: entry.value['color'] as Color,
+                            width: 22,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _compactUsageLabel(String label) {
+    final words = label.trim().split(RegExp(r'\s+'));
+    if (words.length <= 2) return label;
+
+    final lastWord = words.last;
+    final quantityPattern = RegExp(r'^\d+([,.]\d+)?[a-zA-Z]+$');
+    if (quantityPattern.hasMatch(lastWord)) {
+      return '${words.take(words.length - 1).join(' ')}\n$lastWord';
+    }
+
+    final splitIndex = (words.length / 2).ceil();
+    return '${words.take(splitIndex).join(' ')}\n'
+        '${words.skip(splitIndex).join(' ')}';
   }
 
   Widget _buildChartCard({required String title, required Widget child}) {

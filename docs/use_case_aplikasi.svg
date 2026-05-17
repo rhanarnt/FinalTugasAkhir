@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="980" viewBox="0 0 1400 980">
+  <defs>
+    <style>
+      .title { font-family: Arial, sans-serif; font-size: 30px; font-weight: 700; fill: #2b211c; }
+      .label { font-family: Arial, sans-serif; font-size: 18px; fill: #2b211c; }
+      .small { font-family: Arial, sans-serif; font-size: 15px; fill: #5b4b43; }
+      .system { fill: #fffaf4; stroke: #8b5e3c; stroke-width: 3; rx: 18; }
+      .usecase { fill: #ffffff; stroke: #8b5e3c; stroke-width: 2.4; }
+      .actor-line { stroke: #2b211c; stroke-width: 3; stroke-linecap: round; fill: none; }
+      .assoc { stroke: #4b3a31; stroke-width: 2.1; fill: none; }
+      .include { stroke: #6b7280; stroke-width: 1.8; stroke-dasharray: 8 6; fill: none; marker-end: url(#arrow); }
+      .note { fill: #eef7ff; stroke: #7eb6d9; stroke-width: 1.8; rx: 12; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#6b7280" />
+    </marker>
+  </defs>
+
+  <rect width="1400" height="980" fill="#f6efe8" />
+  <text x="700" y="54" text-anchor="middle" class="title">Use Case Diagram Aplikasi Prediksi dan Pengelolaan Stok Bahan Kue</text>
+
+  <!-- Actor -->
+  <circle cx="128" cy="235" r="30" fill="#ffffff" stroke="#2b211c" stroke-width="3" />
+  <path d="M128 265 L128 365" class="actor-line" />
+  <path d="M70 305 L186 305" class="actor-line" />
+  <path d="M128 365 L80 445" class="actor-line" />
+  <path d="M128 365 L176 445" class="actor-line" />
+  <text x="128" y="486" text-anchor="middle" class="label">Admin /</text>
+  <text x="128" y="510" text-anchor="middle" class="label">Pemilik Toko</text>
+
+  <!-- System boundary -->
+  <rect x="270" y="100" width="1040" height="810" class="system" />
+  <text x="790" y="137" text-anchor="middle" class="label" font-weight="700">Sistem Aplikasi Mobile</text>
+
+  <!-- Main use cases -->
+  <ellipse cx="520" cy="210" rx="155" ry="45" class="usecase" />
+  <text x="520" y="216" text-anchor="middle" class="label">Login</text>
+
+  <ellipse cx="520" cy="325" rx="155" ry="48" class="usecase" />
+  <text x="520" y="320" text-anchor="middle" class="label">Melihat</text>
+  <text x="520" y="344" text-anchor="middle" class="label">Dashboard</text>
+
+  <ellipse cx="520" cy="450" rx="155" ry="52" class="usecase" />
+  <text x="520" y="444" text-anchor="middle" class="label">Mengelola Produk</text>
+  <text x="520" y="468" text-anchor="middle" class="label">dan Stok Bahan</text>
+
+  <ellipse cx="520" cy="580" rx="155" ry="48" class="usecase" />
+  <text x="520" y="575" text-anchor="middle" class="label">Mencatat</text>
+  <text x="520" y="599" text-anchor="middle" class="label">Stok Masuk</text>
+
+  <ellipse cx="790" cy="250" rx="170" ry="54" class="usecase" />
+  <text x="790" y="244" text-anchor="middle" class="label">Melakukan Prediksi</text>
+  <text x="790" y="268" text-anchor="middle" class="label">Kebutuhan Produksi</text>
+
+  <ellipse cx="790" cy="410" rx="170" ry="54" class="usecase" />
+  <text x="790" y="404" text-anchor="middle" class="label">Submit Produksi</text>
+  <text x="790" y="428" text-anchor="middle" class="label">dan Update Stok</text>
+
+  <ellipse cx="790" cy="610" rx="170" ry="54" class="usecase" />
+  <text x="790" y="604" text-anchor="middle" class="label">Melihat Laporan</text>
+  <text x="790" y="628" text-anchor="middle" class="label">dan Analitik</text>
+
+  <ellipse cx="790" cy="760" rx="155" ry="48" class="usecase" />
+  <text x="790" y="755" text-anchor="middle" class="label">Mengatur</text>
+  <text x="790" y="779" text-anchor="middle" class="label">Aplikasi</text>
+
+  <!-- Included use cases -->
+  <ellipse cx="1095" cy="195" rx="150" ry="42" class="usecase" />
+  <text x="1095" y="201" text-anchor="middle" class="label">Mengambil Data Resep</text>
+
+  <ellipse cx="1095" cy="295" rx="150" ry="42" class="usecase" />
+  <text x="1095" y="290" text-anchor="middle" class="label">Menghitung</text>
+  <text x="1095" y="314" text-anchor="middle" class="label">Kebutuhan Bahan</text>
+
+  <ellipse cx="1095" cy="395" rx="150" ry="42" class="usecase" />
+  <text x="1095" y="390" text-anchor="middle" class="label">Mengecek</text>
+  <text x="1095" y="414" text-anchor="middle" class="label">Ketersediaan Stok</text>
+
+  <ellipse cx="1095" cy="500" rx="150" ry="42" class="usecase" />
+  <text x="1095" y="495" text-anchor="middle" class="label">Mengurangi</text>
+  <text x="1095" y="519" text-anchor="middle" class="label">Stok Otomatis</text>
+
+  <ellipse cx="1095" cy="605" rx="150" ry="42" class="usecase" />
+  <text x="1095" y="600" text-anchor="middle" class="label">Menyimpan</text>
+  <text x="1095" y="624" text-anchor="middle" class="label">Hasil Prediksi</text>
+
+  <ellipse cx="1095" cy="710" rx="150" ry="42" class="usecase" />
+  <text x="1095" y="705" text-anchor="middle" class="label">Mengekspor</text>
+  <text x="1095" y="729" text-anchor="middle" class="label">Laporan</text>
+
+  <!-- Actor associations -->
+  <path d="M188 235 C250 225, 300 215, 365 210" class="assoc" />
+  <path d="M188 270 C250 288, 300 310, 365 325" class="assoc" />
+  <path d="M188 310 C250 350, 300 410, 365 450" class="assoc" />
+  <path d="M188 350 C250 425, 300 525, 365 580" class="assoc" />
+  <path d="M188 250 C360 230, 520 235, 620 250" class="assoc" />
+  <path d="M188 305 C360 345, 520 380, 620 410" class="assoc" />
+  <path d="M188 395 C360 500, 540 585, 620 610" class="assoc" />
+  <path d="M188 445 C360 610, 560 735, 635 760" class="assoc" />
+
+  <!-- Include relationships -->
+  <path d="M945 235 C985 225, 1015 215, 1048 203" class="include" />
+  <text x="1005" y="222" class="small">&lt;&lt;include&gt;&gt;</text>
+
+  <path d="M953 270 C990 278, 1018 286, 1050 294" class="include" />
+  <text x="996" y="278" class="small">&lt;&lt;include&gt;&gt;</text>
+
+  <path d="M943 390 C986 390, 1015 392, 1045 394" class="include" />
+  <text x="975" y="382" class="small">&lt;&lt;include&gt;&gt;</text>
+
+  <path d="M940 430 C990 455, 1022 474, 1050 491" class="include" />
+  <text x="990" y="465" class="small">&lt;&lt;include&gt;&gt;</text>
+
+  <path d="M920 450 C985 510, 1025 560, 1054 592" class="include" />
+  <text x="970" y="542" class="small">&lt;&lt;include&gt;&gt;</text>
+
+  <path d="M947 640 C990 660, 1020 680, 1050 698" class="include" />
+  <text x="990" y="675" class="small">&lt;&lt;include&gt;&gt;</text>
+
+  <!-- Note -->
+  <rect x="362" y="820" width="436" height="58" class="note" />
+  <text x="580" y="844" text-anchor="middle" class="small">Model Random Forest digunakan melalui Flask API</text>
+  <text x="580" y="865" text-anchor="middle" class="small">untuk mendukung proses prediksi permintaan.</text>
+</svg>

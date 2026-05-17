@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:finalproject/services/ml_service.dart';
 import 'package:finalproject/utils/stock_status.dart';
@@ -401,9 +402,19 @@ class ReportController extends ChangeNotifier {
   DateTime _parseDate(dynamic value) {
     if (value is DateTime) return value;
     if (value is String) {
-      return DateTime.tryParse(value) ?? DateTime.now();
+      final text = value.trim();
+      if (text.isEmpty) return DateTime.fromMillisecondsSinceEpoch(0);
+
+      final parsed = DateTime.tryParse(text);
+      if (parsed != null) return parsed;
+
+      try {
+        return HttpDate.parse(text).toLocal();
+      } catch (_) {
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
     }
-    return DateTime.now();
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   @override

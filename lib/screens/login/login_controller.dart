@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:finalproject/services/auth_service.dart';
+import 'package:finalproject/services/ml_service.dart';
 
 class LoginController extends ChangeNotifier {
-  final usernameController = TextEditingController(text: 'admin@sulastri.com');
-  final passwordController = TextEditingController(text: 'password');
+  final usernameController = TextEditingController();
+  final passwordController = TextEditingController();
 
   bool isPasswordVisible = false;
   bool isLoading = false;
+  String? errorMessage;
 
   void togglePasswordVisibility() {
     isPasswordVisible = !isPasswordVisible;
@@ -24,13 +27,27 @@ class LoginController extends ChangeNotifier {
     if (error != null) return false;
 
     isLoading = true;
+    errorMessage = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(seconds: 1));
+    final result = await MLService.login(
+      usernameOrEmail: usernameController.text.trim(),
+      password: passwordController.text,
+    );
 
     isLoading = false;
+    final success = result['status'] == 'success';
+    if (success) {
+      final data = result['data'];
+      await AuthService.saveLoginSession(
+        name: data is Map ? data['name']?.toString() : null,
+        email: data is Map ? data['email']?.toString() : null,
+      );
+    } else {
+      errorMessage = result['message']?.toString() ?? 'Login gagal';
+    }
     notifyListeners();
-    return true;
+    return success;
   }
 
   @override

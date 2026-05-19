@@ -5,9 +5,41 @@ class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://192.168.1.72:5000';
+  static const String baseUrl = 'http://192.168.18.30:5000';
 
   static const int timeoutSeconds = 30;
+
+  /// Login using account data from MySQL login table.
+  static Future<Map<String, dynamic>> login({
+    required String usernameOrEmail,
+    required String password,
+  }) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': usernameOrEmail,
+              'username': usernameOrEmail,
+              'password': password,
+            }),
+          )
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) {
+        return body;
+      }
+
+      return {'status': 'error', 'message': body['message'] ?? 'Login gagal'};
+    } catch (e) {
+      return {
+        'status': 'error',
+        'message': 'Tidak dapat terhubung ke server: $e',
+      };
+    }
+  }
 
   /// Convert grams to kilograms with rounding rules:
   /// - <= 500g -> 0.5kg

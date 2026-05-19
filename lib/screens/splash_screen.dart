@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:finalproject/services/auth_service.dart';
 import 'package:finalproject/theme/colors.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -63,10 +64,12 @@ class _SplashScreenState extends State<SplashScreen>
       // Tunggu sebentar sebelum navigate
       await Future.delayed(const Duration(seconds: 1));
 
-      if (mounted) {
-        // Navigate ke Login
-        Navigator.of(context).pushReplacementNamed('/login');
-      }
+      final isLoggedIn = await AuthService.isLoggedIn();
+      if (!mounted) return;
+
+      Navigator.of(
+        context,
+      ).pushReplacementNamed(isLoggedIn ? '/dashboard' : '/login');
     } catch (e) {
       setState(() => _statusMessage = 'Error: ${e.toString()}');
       await Future.delayed(const Duration(seconds: 2));
@@ -148,16 +151,17 @@ class _SplashScreenState extends State<SplashScreen>
                                 borderRadius: BorderRadius.circular(28),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.15),
+                                    color: Colors.black.withValues(alpha: 0.15),
                                     blurRadius: 25,
                                     offset: const Offset(0, 10),
                                   ),
                                 ],
                               ),
-                              child: Center(
-                                child: Text(
-                                  '🍰',
-                                  style: TextStyle(fontSize: 60),
+                              child: Padding(
+                                padding: const EdgeInsets.all(18),
+                                child: Image.asset(
+                                  'assets/branding/app_icon.png',
+                                  fit: BoxFit.contain,
                                 ),
                               ),
                             ),
@@ -179,7 +183,7 @@ class _SplashScreenState extends State<SplashScreen>
                               children: [
                                 // Main title
                                 Text(
-                                  'Sulastri',
+                                  'Tobaku Sulastri',
                                   style: TextStyle(
                                     fontSize: 36,
                                     fontWeight: FontWeight.w700,
@@ -300,6 +304,16 @@ class _SplashScreenState extends State<SplashScreen>
                           ],
                         ),
                         const SizedBox(height: 40),
+
+                        Text(
+                          _statusMessage,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textTertiary,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
 
                         // Version text
                         Text(

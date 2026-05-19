@@ -1,11 +1,11 @@
 {
-    "name": "finalproject",
-    "short_name": "finalproject",
+    "name": "Tobaku Sulastri",
+    "short_name": "Tobaku",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F8F1E8",
+    "theme_color": "#8B5A3C",
+    "description": "Aplikasi prediksi permintaan dan stok bahan kue Tobaku Sulastri.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

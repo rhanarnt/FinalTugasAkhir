@@ -37,7 +37,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success) {
       Navigator.of(context).pushReplacementNamed('/dashboard');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_controller.errorMessage ?? 'Login gagal'),
+          backgroundColor: AppColors.statusError,
+        ),
+      );
     }
+  }
+
+  void _onForgotPasswordPressed() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          'Fitur lupa password dengan OTP akan dikembangkan pada tahap berikutnya.',
+        ),
+        backgroundColor: AppColors.primaryBrown,
+      ),
+    );
   }
 
   @override
@@ -193,7 +211,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
                                   onPressed:
-                                      _controller.isLoading ? null : () {},
+                                      _controller.isLoading
+                                          ? null
+                                          : _onForgotPasswordPressed,
                                   style: TextButton.styleFrom(
                                     padding: EdgeInsets.zero,
                                   ),
@@ -247,35 +267,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                 ),
                               ),
-                              const SizedBox(height: 24),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.bgLight,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: AppColors.grey300),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Demo: Klik "Masuk" untuk melanjutkan',
-                                      style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.statusError,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 48),
                       Text(
-                        '© 2025 Toko Bahan Kue Sulastri',
+                        '(c) 2025 Tobaku Sulastri',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textTertiary,
                         ),

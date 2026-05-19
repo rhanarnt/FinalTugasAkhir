@@ -1,6 +1,7 @@
 import 'package:finalproject/theme/colors.dart';
 import 'package:finalproject/theme/text_styles.dart';
 import 'package:flutter/material.dart';
+import 'package:finalproject/services/auth_service.dart';
 
 import 'settings_controller.dart';
 
@@ -51,8 +52,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(context);
+                  await AuthService.logout();
+                  if (!context.mounted) return;
                   Navigator.of(
                     context,
                   ).pushNamedAndRemoveUntil('/login', (route) => false);
@@ -341,7 +344,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          '© 2025 Toko Bahan Kue Sulastri',
+                          '© 2025 Tobaku Sulastri',
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.textTertiary,
                           ),

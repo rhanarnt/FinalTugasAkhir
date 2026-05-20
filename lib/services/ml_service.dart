@@ -1,11 +1,12 @@
 import 'package:http/http.dart' as http;
+import 'dart:async';
 import 'dart:convert';
 
 class MLService {
   // API URL - Change based on environment
   // Untuk emulator Android: 10.0.2.2
   // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://192.168.18.30:5000';
+  static const String baseUrl = 'http://192.168.1.16:5000';
 
   static const int timeoutSeconds = 30;
 
@@ -33,6 +34,92 @@ class MLService {
       }
 
       return {'status': 'error', 'message': body['message'] ?? 'Login gagal'};
+    } on TimeoutException {
+      return {
+        'status': 'error',
+        'message':
+            'Server tidak merespons. Pastikan Flask aktif dan IP/port API sudah benar.',
+      };
+    } catch (e) {
+      return {
+        'status': 'error',
+        'message': 'Tidak dapat terhubung ke server: $e',
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> sendForgotPasswordOtp({
+    required String usernameOrEmail,
+  }) async {
+    return _postJson('/api/forgot-password/send-otp', {
+      'email': usernameOrEmail,
+      'username': usernameOrEmail,
+    }, fallbackMessage: 'Gagal membuat OTP');
+  }
+
+  static Future<Map<String, dynamic>> verifyForgotPasswordOtp({
+    required String usernameOrEmail,
+    required String otp,
+  }) async {
+    return _postJson('/api/forgot-password/verify-otp', {
+      'email': usernameOrEmail,
+      'username': usernameOrEmail,
+      'otp': otp,
+    }, fallbackMessage: 'Gagal verifikasi OTP');
+  }
+
+  static Future<Map<String, dynamic>> resetPasswordWithOtp({
+    required String usernameOrEmail,
+    required String otp,
+    required String newPassword,
+  }) async {
+    return _postJson('/api/forgot-password/reset', {
+      'email': usernameOrEmail,
+      'username': usernameOrEmail,
+      'otp': otp,
+      'new_password': newPassword,
+    }, fallbackMessage: 'Gagal reset password');
+  }
+
+  static Future<Map<String, dynamic>> changePassword({
+    required String usernameOrEmail,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    return _postJson('/api/change-password', {
+      'email': usernameOrEmail,
+      'username': usernameOrEmail,
+      'current_password': currentPassword,
+      'new_password': newPassword,
+    }, fallbackMessage: 'Gagal mengubah password');
+  }
+
+  static Future<Map<String, dynamic>> _postJson(
+    String path,
+    Map<String, dynamic> payload, {
+    required String fallbackMessage,
+  }) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl$path'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return body;
+      }
+
+      return {'status': 'error', 'message': body['message'] ?? fallbackMessage};
+    } on TimeoutException {
+      return {
+        'status': 'error',
+        'message':
+            'Server tidak merespons. Pastikan Flask aktif dan IP/port API sudah benar.',
+      };
     } catch (e) {
       return {
         'status': 'error',

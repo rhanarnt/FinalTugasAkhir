@@ -1,7 +1,8 @@
+import 'package:finalproject/services/auth_service.dart';
 import 'package:finalproject/theme/colors.dart';
 import 'package:finalproject/theme/text_styles.dart';
 import 'package:flutter/material.dart';
-import 'package:finalproject/services/auth_service.dart';
+import 'package:finalproject/widgets/password_reset_dialog.dart';
 
 import 'settings_controller.dart';
 
@@ -14,11 +15,45 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late final SettingsController _controller;
+  String _userName = 'Ibu Sulastri';
+  String _userEmail = 'sulastri.aritanto10@gmail.com';
 
   @override
   void initState() {
     super.initState();
     _controller = SettingsController();
+    _loadAccount();
+  }
+
+  Future<void> _loadAccount() async {
+    final name = await AuthService.getUserName();
+    final email = await AuthService.getUserEmail();
+    if (!mounted) return;
+    setState(() {
+      _userName = name;
+      _userEmail = email;
+    });
+  }
+
+  void _showMessage(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            isError ? AppColors.statusError : AppColors.primaryBrown,
+      ),
+    );
+  }
+
+  Future<void> _showResetPasswordDialog() async {
+    final success = await showPasswordResetDialog(
+      context,
+      initialAccount: _userEmail,
+      lockAccountField: true,
+    );
+    if (success) {
+      _showMessage('Password berhasil diperbarui dengan verifikasi OTP');
+    }
   }
 
   void _showLogoutDialog() {
@@ -97,209 +132,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Akun',
-                    style: AppTextStyles.headlineSmall.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+                  _buildSectionTitle('Akun'),
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgWhite,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [AppColors.shadowLight],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryBrown,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Admin Sulastri',
-                                style: AppTextStyles.labelLarge.copyWith(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'admin@sulastri.com',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildAccountCard(),
                   const SizedBox(height: 32),
-                  Text(
-                    'Umum',
-                    style: AppTextStyles.headlineSmall.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+                  _buildSectionTitle('Keamanan'),
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgWhite,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [AppColors.shadowLight],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.language,
-                              color: AppColors.primaryBrown,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Bahasa',
-                                  style: AppTextStyles.labelLarge.copyWith(
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  'Bahasa Indonesia',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          color: AppColors.textSecondary,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgWhite,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [AppColors.shadowLight],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.notifications_outlined,
-                              color: AppColors.primaryBrown,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Notifikasi',
-                                  style: AppTextStyles.labelLarge.copyWith(
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  'Aktifkan notifikasi penting',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Switch(
-                          value: _controller.notificationEnabled,
-                          onChanged: _controller.setNotificationEnabled,
-                          activeColor: AppColors.primaryBrown,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'Keamanan',
-                    style: AppTextStyles.headlineSmall.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgWhite,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [AppColors.shadowLight],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.lock_outlined,
-                              color: AppColors.primaryBrown,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Ubah Password',
-                                  style: AppTextStyles.labelLarge.copyWith(
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  'Perbarui password akun Anda',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          color: AppColors.textSecondary,
-                        ),
-                      ],
-                    ),
+                  _buildActionCard(
+                    icon: Icons.lock_outlined,
+                    title: 'Ubah Password',
+                    subtitle: 'Verifikasi OTP melalui email akun',
+                    onTap: _showResetPasswordDialog,
                   ),
                   const SizedBox(height: 32),
                   SizedBox(
@@ -319,40 +162,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgLight,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.grey300),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Prediksi Stok Bahan Kue',
-                          style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Version 1.0.0',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '© 2025 Tobaku Sulastri',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildAppInfo(),
                 ],
               ),
             ),
@@ -412,6 +222,150 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary),
+    );
+  }
+
+  Widget _buildAccountCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.bgWhite,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [AppColors.shadowLight],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: AppColors.primaryBrown,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.person, color: Colors.white, size: 32),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _userName,
+                  style: AppTextStyles.labelLarge.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _userEmail,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.bgWhite,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [AppColors.shadowLight],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Icon(icon, color: AppColors.primaryBrown, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: AppTextStyles.labelLarge.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppInfo() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.bgLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey300),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Tobaku Sulastri',
+            style: AppTextStyles.labelLarge.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Version 1.0.0',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '(c) 2025 Tobaku Sulastri',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 

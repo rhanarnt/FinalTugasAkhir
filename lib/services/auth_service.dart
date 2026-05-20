@@ -23,6 +23,17 @@ class AuthService {
     return preferences.getBool(_isLoggedInKey) ?? false;
   }
 
+  static Future<String> getUserName() async {
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getString(_userNameKey) ?? 'Ibu Sulastri';
+  }
+
+  static Future<String> getUserEmail() async {
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getString(_userEmailKey) ??
+        'sulastri.aritanto10@gmail.com';
+  }
+
   static Future<void> logout() async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.remove(_isLoggedInKey);

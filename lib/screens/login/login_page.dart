@@ -1,6 +1,7 @@
 import 'package:finalproject/theme/colors.dart';
 import 'package:finalproject/theme/text_styles.dart';
 import 'package:flutter/material.dart';
+import 'package:finalproject/widgets/password_reset_dialog.dart';
 
 import 'login_controller.dart';
 
@@ -47,15 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _onForgotPasswordPressed() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Fitur lupa password dengan OTP akan dikembangkan pada tahap berikutnya.',
-        ),
-        backgroundColor: AppColors.primaryBrown,
-      ),
+  Future<void> _onForgotPasswordPressed() async {
+    final success = await showPasswordResetDialog(
+      context,
+      initialAccount: _controller.usernameController.text.trim(),
     );
+
+    if (success) {
+      _controller.passwordController.clear();
+    }
   }
 
   @override

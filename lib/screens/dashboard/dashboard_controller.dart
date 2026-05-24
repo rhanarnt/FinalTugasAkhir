@@ -109,7 +109,11 @@ class DashboardController extends ChangeNotifier {
       if (item is! Map) continue;
 
       final stockValue = StockStatusUtils.parseStock(item['current_stock']);
-      final statusKey = StockStatusUtils.statusFromStock(stockValue);
+      final minStock = StockStatusUtils.parseStock(item['min_stock']);
+      final statusKey = StockStatusUtils.statusFromStock(
+        stockValue,
+        minStock: minStock,
+      );
       if (statusKey != StockStatusUtils.statusKritis) continue;
 
       final category = item['category']?.toString().toLowerCase() ?? '';

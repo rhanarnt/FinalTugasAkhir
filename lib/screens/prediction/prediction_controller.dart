@@ -88,13 +88,12 @@ class PredictionController extends ChangeNotifier {
           (product['name'] ?? product['product_name'] ?? '').toString();
       if (name.isEmpty) continue;
 
-      final id = product['id'] ?? 0;
+      final id = _toInt(product['id']);
       final unit = (product['unit'] ?? '').toString();
-      final stockRaw = product['current_stock'] ?? 0;
-      final stock = stockRaw is num ? stockRaw.toDouble() : 0.0;
+      final stock = _toDouble(product['current_stock'] ?? product['stock']);
 
       currentStock[name] = stock;
-      if (id is int) {
+      if (id != null) {
         productIds[name] = id;
       }
       if (unit.isNotEmpty) {
@@ -162,7 +161,7 @@ class PredictionController extends ChangeNotifier {
 
     ingredients.forEach((productName, details) {
       if (!isIngredientSelected(productName)) return;
-      final quantity = (details['quantity'] as num).toDouble();
+      final quantity = _toDouble(details['quantity']);
       required[productName] = quantity * productionQuantity;
     });
 
@@ -292,6 +291,17 @@ class PredictionController extends ChangeNotifier {
       return 'butir';
     }
     return normalized;
+  }
+
+  double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  int? _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
   }
 
   double _convertToStockUnit({

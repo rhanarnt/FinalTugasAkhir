@@ -19,7 +19,8 @@ class ProductListController extends ChangeNotifier {
 
       products =
           fetchedProducts.map((p) {
-            final stock = p['current_stock'] ?? 0;
+            final stock = StockStatusUtils.parseStock(p['current_stock']);
+            final minStock = StockStatusUtils.parseStock(p['min_stock']);
             final category = p['category'] ?? '';
             final unit =
                 p['unit'] ??
@@ -30,8 +31,12 @@ class ProductListController extends ChangeNotifier {
               category: category,
               price: p['price'] ?? 0,
               stock: stock,
+              minStock: minStock,
               unit: unit,
-              status: StockStatusUtils.statusFromStock(stock),
+              status: StockStatusUtils.statusFromStock(
+                stock,
+                minStock: minStock,
+              ),
             );
           }).toList();
     } finally {
@@ -74,8 +79,16 @@ class ProductListController extends ChangeNotifier {
   }
 
   int get maxStock {
+    return maxStockValue.ceil().clamp(1, double.infinity).toInt();
+  }
+
+  double get maxStockValue {
     if (products.isEmpty) return 1;
-    return products.fold<int>(0, (max, p) => p.stock > max ? p.stock : max);
+    final maxValue = products.fold<double>(
+      0,
+      (max, p) => p.stock > max ? p.stock : max,
+    );
+    return maxValue <= 0 ? 1 : maxValue;
   }
 
   Color getStatusColor(String status) {
@@ -106,6 +119,14 @@ class ProductListController extends ChangeNotifier {
   }
 
   String formatPrice(int price) => 'Rp ${(price ~/ 1000)}K';
+
+  String formatStock(double value) {
+    if (value % 1 == 0) return value.toInt().toString();
+    return value
+        .toStringAsFixed(3)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
 
   String getStatusLabel(String status) {
     return StockStatusUtils.label(status, withIcon: true);

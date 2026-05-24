@@ -16,8 +16,15 @@ class StockStatusUtils {
     return double.tryParse(value?.toString() ?? '') ?? 0.0;
   }
 
-  static String statusFromStock(num stockKg) {
+  static String statusFromStock(num stockKg, {num? minStock}) {
     final stock = stockKg.toDouble();
+    final minimum = minStock?.toDouble() ?? 0;
+    if (minimum > 0) {
+      if (stock <= minimum) return statusKritis;
+      if (stock <= minimum * 2) return statusSedang;
+      return statusTersedia;
+    }
+
     if (stock < criticalStockLimitKg) return statusKritis;
     if (stock < warningStockLimitKg) return statusSedang;
     return statusTersedia;

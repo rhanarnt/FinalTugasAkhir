@@ -176,7 +176,11 @@ class ReportController extends ChangeNotifier {
       if (item is! Map) continue;
 
       final stock = StockStatusUtils.parseStock(item['current_stock']);
-      final status = StockStatusUtils.statusFromStock(stock);
+      final minStock = StockStatusUtils.parseStock(item['min_stock']);
+      final status = StockStatusUtils.statusFromStock(
+        stock,
+        minStock: minStock,
+      );
       if (status != StockStatusUtils.statusKritis) continue;
 
       final category = item['category']?.toString().toLowerCase() ?? '';

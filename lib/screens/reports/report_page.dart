@@ -371,11 +371,14 @@ class _ReportScreenState extends State<ReportScreen> {
           itemBuilder: (context, index) {
             final item = sortedItems[index];
             final stockValue = StockStatusUtils.parseStock(item['stock']);
-            final statusKey = StockStatusUtils.statusFromStock(stockValue);
+            final minimumStock = StockStatusUtils.parseStock(item['min_stock']);
+            final statusKey = StockStatusUtils.statusFromStock(
+              stockValue,
+              minStock: minimumStock,
+            );
             final statusColor = StockStatusUtils.color(statusKey);
             final statusLabel = StockStatusUtils.label(statusKey);
             final unit = item['unit']?.toString() ?? 'kg';
-            final minimumStock = StockStatusUtils.parseStock(item['min_stock']);
 
             return _buildReportItemCard(
               icon: Icons.inventory_2_outlined,
@@ -1468,7 +1471,13 @@ class _ReportScreenState extends State<ReportScreen> {
               ...stockItems.asMap().entries.map((entry) {
                 final item = entry.value;
                 final stockValue = StockStatusUtils.parseStock(item['stock']);
-                final statusKey = StockStatusUtils.statusFromStock(stockValue);
+                final minimumStock = StockStatusUtils.parseStock(
+                  item['min_stock'],
+                );
+                final statusKey = StockStatusUtils.statusFromStock(
+                  stockValue,
+                  minStock: minimumStock,
+                );
                 return [
                   '${entry.key + 1}',
                   item['name']?.toString() ?? '-',
@@ -1620,7 +1629,11 @@ class _ReportScreenState extends State<ReportScreen> {
     for (var index = 0; index < stockItems.length; index++) {
       final item = stockItems[index];
       final stockValue = StockStatusUtils.parseStock(item['stock']);
-      final statusKey = StockStatusUtils.statusFromStock(stockValue);
+      final minimumStock = StockStatusUtils.parseStock(item['min_stock']);
+      final statusKey = StockStatusUtils.statusFromStock(
+        stockValue,
+        minStock: minimumStock,
+      );
       final statusLabel = StockStatusUtils.label(statusKey);
       buffer.writeln(
         '${index + 1},${_escapeCsv(item['name'])},'
@@ -1709,8 +1722,16 @@ class _ReportScreenState extends State<ReportScreen> {
     return items.toList()..sort((a, b) {
       final aStock = StockStatusUtils.parseStock(a['stock']);
       final bStock = StockStatusUtils.parseStock(b['stock']);
-      final aStatus = StockStatusUtils.statusFromStock(aStock);
-      final bStatus = StockStatusUtils.statusFromStock(bStock);
+      final aMinStock = StockStatusUtils.parseStock(a['min_stock']);
+      final bMinStock = StockStatusUtils.parseStock(b['min_stock']);
+      final aStatus = StockStatusUtils.statusFromStock(
+        aStock,
+        minStock: aMinStock,
+      );
+      final bStatus = StockStatusUtils.statusFromStock(
+        bStock,
+        minStock: bMinStock,
+      );
       final statusComparison = _statusOrder(
         aStatus,
       ).compareTo(_statusOrder(bStatus));

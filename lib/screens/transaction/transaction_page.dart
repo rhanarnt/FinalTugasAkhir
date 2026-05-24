@@ -92,6 +92,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
     final newProductNameController = TextEditingController();
     final newPriceController = TextEditingController();
     final newStockController = TextEditingController();
+    final newMinStockController = TextEditingController();
     const unitOptionsByType = {
       'Bahan': ['kg'],
       'Barang': ['pcs'],
@@ -268,6 +269,30 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                     fillColor: AppColors.bgLight,
                                   ),
                                 ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Stok Minimum',
+                                  style: AppTextStyles.labelLarge.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: newMinStockController,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        'Batas minimum stok untuk peringatan',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    filled: true,
+                                    fillColor: AppColors.bgLight,
+                                  ),
+                                ),
                                 const SizedBox(height: 24),
                                 Row(
                                   children: [
@@ -308,11 +333,16 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                               newPriceController.text.trim();
                                           final stockText =
                                               newStockController.text.trim();
+                                          final minStockText =
+                                              newMinStockController.text
+                                                  .trim()
+                                                  .replaceAll(',', '.');
 
                                           if (productName.isEmpty ||
                                               category.isEmpty ||
                                               priceText.isEmpty ||
-                                              stockText.isEmpty) {
+                                              stockText.isEmpty ||
+                                              minStockText.isEmpty) {
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
@@ -361,12 +391,37 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                             return;
                                           }
 
+                                          final minStock =
+                                              double.tryParse(minStockText) ??
+                                              -1;
+                                          if (minStock < 0) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: const Text(
+                                                  'Stok minimum tidak boleh negatif',
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.statusError,
+                                              ),
+                                            );
+                                            return;
+                                          }
+
+                                          final navigator = Navigator.of(
+                                            context,
+                                          );
+                                          final messenger =
+                                              ScaffoldMessenger.of(context);
+
                                           final result = await _controller
                                               .createProduct(
                                                 productName: productName,
                                                 category: category,
                                                 price: priceInt,
                                                 initialStock: stockInt,
+                                                minStock: minStock,
                                                 unit: selectedUnit,
                                                 productType:
                                                     selectedProductType,
@@ -375,10 +430,8 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                           if (!mounted) return;
 
                                           if (result['status'] == 'success') {
-                                            Navigator.pop(context);
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
+                                            navigator.pop();
+                                            messenger.showSnackBar(
                                               SnackBar(
                                                 content: Text(
                                                   'Produk "$productName" berhasil ditambahkan',
@@ -388,9 +441,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                               ),
                                             );
                                           } else {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
+                                            messenger.showSnackBar(
                                               SnackBar(
                                                 content: Text(
                                                   result['message'] ??
@@ -724,7 +775,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                             height: 32,
                                             decoration: BoxDecoration(
                                               color: AppColors.statusError
-                                                  .withOpacity(0.1),
+                                                  .withValues(alpha: 0.1),
                                               borderRadius:
                                                   BorderRadius.circular(6),
                                             ),

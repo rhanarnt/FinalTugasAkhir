@@ -209,6 +209,7 @@ class TransactionController extends ChangeNotifier {
     required String category,
     required int price,
     required int initialStock,
+    required double minStock,
     required String unit,
     required String productType,
   }) async {
@@ -221,6 +222,7 @@ class TransactionController extends ChangeNotifier {
       category: category,
       price: price,
       currentStock: initialStock,
+      minStock: minStock,
       unit: unit,
       productType: productType,
     );

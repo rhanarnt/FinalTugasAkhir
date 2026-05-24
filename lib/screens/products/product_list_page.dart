@@ -360,7 +360,7 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
   }
 
   Widget _buildProductCard(Product product) {
-    final maxStock = _controller.maxStock;
+    final maxStock = _controller.maxStockValue;
     final stockPercentage = (product.stock / maxStock * 100).toInt();
 
     return InkWell(
@@ -488,7 +488,7 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${product.stock} ${product.unit}',
+                          '${_controller.formatStock(product.stock)} ${product.unit}',
                           style: AppTextStyles.labelLarge.copyWith(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w700,
@@ -560,7 +560,7 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
   }
 
   void _showProductDetail(Product product) {
-    final maxStock = _controller.maxStock;
+    final maxStock = _controller.maxStockValue;
     final stockPercentage =
         maxStock == 0 ? 0 : (product.stock / maxStock * 100).round();
     final statusColor = _controller.getStatusColor(product.status);
@@ -672,7 +672,14 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                   _buildDetailTile(
                     icon: Icons.inventory_2_outlined,
                     label: 'Stok',
-                    value: '${product.stock} ${product.unit}',
+                    value:
+                        '${_controller.formatStock(product.stock)} ${product.unit}',
+                  ),
+                  _buildDetailTile(
+                    icon: Icons.low_priority_outlined,
+                    label: 'Minimum',
+                    value:
+                        '${_controller.formatStock(product.minStock)} ${product.unit}',
                   ),
                   _buildDetailTile(
                     icon: Icons.straighten_outlined,

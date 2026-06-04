@@ -1,0 +1,95 @@
+<mxfile host="app.diagrams.net" modified="2026-05-29T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="bab3" name="Page-1">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="etitle" value="Entity Relationship Diagram Database Aplikasi" style="text;html=1;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=24;fontStyle=1;fontColor=#2D2520;" vertex="1" parent="1"><mxGeometry x="430" y="20" width="740" height="40" as="geometry" /></mxCell>
+        <mxCell id="e_login" value="login
+PK id
+name
+email (unique)
+username (unique)
+password
+created_at" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#FFF8EF;strokeColor=#8B5E3C;strokeWidth=2;fontFamily=Arial;fontSize=13;fontColor=#2D2520;" vertex="1" parent="1"><mxGeometry x="80" y="110" width="245" height="170" as="geometry" /></mxCell>
+        <mxCell id="e_otp" value="password_reset_otps
+PK id
+FK login_id
+email
+otp_code
+expires_at
+is_used
+created_at" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#FFF8EF;strokeColor=#8B5E3C;strokeWidth=2;fontFamily=Arial;fontSize=13;fontColor=#2D2520;" vertex="1" parent="1"><mxGeometry x="80" y="360" width="245" height="190" as="geometry" /></mxCell>
+        <mxCell id="e_products" value="products
+PK id
+name/product_name
+category
+product_type
+unit
+price
+current_stock
+min_stock
+created_at
+updated_at" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#FFF8EF;strokeColor=#8B5E3C;strokeWidth=2;fontFamily=Arial;fontSize=13;fontColor=#2D2520;" vertex="1" parent="1"><mxGeometry x="430" y="90" width="270" height="240" as="geometry" /></mxCell>
+        <mxCell id="e_trans" value="transactions / Stock In
+PK id
+product_name
+category
+quantity
+unit_price
+total_price
+transaction_date
+created_at" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#FFF8EF;strokeColor=#8B5E3C;strokeWidth=2;fontFamily=Arial;fontSize=13;fontColor=#2D2520;" vertex="1" parent="1"><mxGeometry x="430" y="405" width="270" height="205" as="geometry" /></mxCell>
+        <mxCell id="e_recipes" value="recipes
+PK id
+recipe_name
+description
+created_at" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#FFF8EF;strokeColor=#8B5E3C;strokeWidth=2;fontFamily=Arial;fontSize=13;fontColor=#2D2520;" vertex="1" parent="1"><mxGeometry x="805" y="95" width="245" height="135" as="geometry" /></mxCell>
+        <mxCell id="e_ing" value="recipe_ingredients
+PK id
+FK recipe_id
+product_name
+quantity_needed
+unit" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#FFF8EF;strokeColor=#8B5E3C;strokeWidth=2;fontFamily=Arial;fontSize=13;fontColor=#2D2520;" vertex="1" parent="1"><mxGeometry x="805" y="300" width="245" height="155" as="geometry" /></mxCell>
+        <mxCell id="e_usage" value="stock_usage_history
+PK id
+recipe_name
+production_quantity
+FK product_id
+product_name
+quantity_used
+unit
+created_at" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#FFF8EF;strokeColor=#8B5E3C;strokeWidth=2;fontFamily=Arial;fontSize=13;fontColor=#2D2520;" vertex="1" parent="1"><mxGeometry x="805" y="535" width="270" height="205" as="geometry" /></mxCell>
+        <mxCell id="e_pred" value="predictions / prediksi
+PK id
+product_name/nama_produk
+category
+unit_price
+prediction_date
+predicted_quantity
+estimated_needs
+accuracy_r2
+error_mae
+created_at" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#FFF8EF;strokeColor=#8B5E3C;strokeWidth=2;fontFamily=Arial;fontSize=13;fontColor=#2D2520;" vertex="1" parent="1"><mxGeometry x="1160" y="230" width="300" height="265" as="geometry" /></mxCell>
+        <mxCell id="e_bahan" value="bahan / stok_masuk / stok_keluar
+PK id
+FK product_id / bahan_id
+nama_bahan
+stok / jumlah
+unit / satuan
+tanggal
+created_at
+updated_at" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#FFF8EF;strokeColor=#8B5E3C;strokeWidth=2;fontFamily=Arial;fontSize=13;fontColor=#2D2520;" vertex="1" parent="1"><mxGeometry x="1160" y="565" width="300" height="235" as="geometry" /></mxCell>
+        <mxCell id="ee0" value="1 : N" style="endArrow=ERmany;startArrow=ERone;html=1;rounded=0;strokeColor=#4B3A31;fontFamily=Arial;fontSize=12;fontColor=#2D2520;" edge="1" parent="1" source="e_login" target="e_otp"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee1" value="1 : N" style="endArrow=ERmany;startArrow=ERone;html=1;rounded=0;strokeColor=#4B3A31;fontFamily=Arial;fontSize=12;fontColor=#2D2520;" edge="1" parent="1" source="e_recipes" target="e_ing"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee2" value="1 : N" style="endArrow=ERmany;startArrow=ERone;html=1;rounded=0;strokeColor=#4B3A31;fontFamily=Arial;fontSize=12;fontColor=#2D2520;" edge="1" parent="1" source="e_products" target="e_usage"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee3" value="1 : N" style="endArrow=ERmany;startArrow=ERone;html=1;rounded=0;strokeColor=#4B3A31;fontFamily=Arial;fontSize=12;fontColor=#2D2520;" edge="1" parent="1" source="e_products" target="e_bahan"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee4" value="1 : N (berdasarkan nama/id)" style="endArrow=ERmany;startArrow=ERone;html=1;rounded=0;strokeColor=#4B3A31;fontFamily=Arial;fontSize=12;fontColor=#2D2520;" edge="1" parent="1" source="e_products" target="e_trans"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee5" value="1 : N (produk diprediksi)" style="endArrow=ERmany;startArrow=ERone;html=1;rounded=0;strokeColor=#4B3A31;fontFamily=Arial;fontSize=12;fontColor=#2D2520;" edge="1" parent="1" source="e_products" target="e_pred"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee6" value="N : 1 (product_name)" style="endArrow=ERmany;startArrow=ERone;html=1;rounded=0;strokeColor=#4B3A31;fontFamily=Arial;fontSize=12;fontColor=#2D2520;" edge="1" parent="1" source="e_ing" target="e_products"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee7" value="1 : N (recipe_name)" style="endArrow=ERmany;startArrow=ERone;html=1;rounded=0;strokeColor=#4B3A31;fontFamily=Arial;fontSize=12;fontColor=#2D2520;" edge="1" parent="1" source="e_recipes" target="e_usage"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

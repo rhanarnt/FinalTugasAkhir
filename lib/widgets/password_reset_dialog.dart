@@ -16,6 +16,8 @@ Future<bool> showPasswordResetDialog(
   int step = 0;
   bool isLoading = false;
   bool resetSuccess = false;
+  bool isNewPasswordVisible = false;
+  bool isConfirmPasswordVisible = false;
   String? maskedEmail;
 
   void showMessage(String message, {bool isError = false}) {
@@ -185,20 +187,58 @@ Future<bool> showPasswordResetDialog(
                     TextField(
                       controller: newPasswordController,
                       enabled: !isLoading,
-                      obscureText: true,
-                      decoration: const InputDecoration(
+                      obscureText: !isNewPasswordVisible,
+                      decoration: InputDecoration(
                         labelText: 'Password baru',
-                        prefixIcon: Icon(Icons.lock_outline),
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          tooltip:
+                              isNewPasswordVisible
+                                  ? 'Sembunyikan password baru'
+                                  : 'Tampilkan password baru',
+                          icon: Icon(
+                            isNewPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed:
+                              isLoading
+                                  ? null
+                                  : () => setDialogState(
+                                    () =>
+                                        isNewPasswordVisible =
+                                            !isNewPasswordVisible,
+                                  ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: confirmPasswordController,
                       enabled: !isLoading,
-                      obscureText: true,
-                      decoration: const InputDecoration(
+                      obscureText: !isConfirmPasswordVisible,
+                      decoration: InputDecoration(
                         labelText: 'Konfirmasi password',
-                        prefixIcon: Icon(Icons.lock_reset_outlined),
+                        prefixIcon: const Icon(Icons.lock_reset_outlined),
+                        suffixIcon: IconButton(
+                          tooltip:
+                              isConfirmPasswordVisible
+                                  ? 'Sembunyikan konfirmasi password'
+                                  : 'Tampilkan konfirmasi password',
+                          icon: Icon(
+                            isConfirmPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed:
+                              isLoading
+                                  ? null
+                                  : () => setDialogState(
+                                    () =>
+                                        isConfirmPasswordVisible =
+                                            !isConfirmPasswordVisible,
+                                  ),
+                        ),
                       ),
                     ),
                   ],

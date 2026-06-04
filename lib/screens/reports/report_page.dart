@@ -711,33 +711,136 @@ class _ReportScreenState extends State<ReportScreen> {
                     message:
                         'Belum ada data bahan dari prediksi untuk menghitung bahan yang paling sering digunakan.',
                   )
-                  : SizedBox(
-                    height: 200,
-                    child: PieChart(
-                      PieChartData(
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 40,
-                        sections:
-                            usagePie.map((entry) {
-                              final value = entry['value'] as double;
-
-                              return PieChartSectionData(
-                                value: value,
-                                color: entry['color'] as Color,
-                                radius: 50,
-                                showTitle: value >= 5,
-                                title: '${value.toStringAsFixed(1)}%',
-                                titleStyle: AppTextStyles.labelSmall.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              );
-                            }).toList(),
-                      ),
-                    ),
-                  ),
+                  : _buildUsagePieChart(usagePie),
         ),
       ],
+    );
+  }
+
+  Widget _buildUsagePieChart(List<Map<String, dynamic>> usagePie) {
+    final mostUsed = usagePie.reduce(
+      (current, next) =>
+          (current['value'] as double) >= (next['value'] as double)
+              ? current
+              : next,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 200,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
+              sections:
+                  usagePie.map((entry) {
+                    final value = entry['value'] as double;
+
+                    return PieChartSectionData(
+                      value: value,
+                      color: entry['color'] as Color,
+                      radius: 50,
+                      showTitle: value >= 5,
+                      title: '${value.toStringAsFixed(1)}%',
+                      titleStyle: AppTextStyles.labelSmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    );
+                  }).toList(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.bgLight,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.grey200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cara membaca pie chart',
+                style: AppTextStyles.labelLarge.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Setiap warna mewakili satu bahan. Semakin besar bagian lingkaran, semakin besar penggunaan bahan tersebut dibandingkan bahan lainnya.',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${mostUsed['label']} merupakan bahan yang paling sering digunakan, yaitu ${_formatQuantity(mostUsed['amount'])} ${mostUsed['unit']} (${(mostUsed['value'] as double).toStringAsFixed(1)}% dari total penggunaan).',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.primaryBrownDark,
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Keterangan warna',
+          style: AppTextStyles.labelLarge.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...usagePie.map(_buildUsagePieLegendItem),
+      ],
+    );
+  }
+
+  Widget _buildUsagePieLegendItem(Map<String, dynamic> entry) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            margin: const EdgeInsets.only(top: 2),
+            decoration: BoxDecoration(
+              color: entry['color'] as Color,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${entry['label']}: ${_formatQuantity(entry['amount'])} ${entry['unit']}',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${(entry['value'] as double).toStringAsFixed(1)}%',
+            style: AppTextStyles.labelSmall.copyWith(
+              color: entry['color'] as Color,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1843,11 +1946,19 @@ class _ReportScreenState extends State<ReportScreen> {
       return [];
     }
 
-    final colors = [
+    final colors = <Color>[
       AppColors.primaryBrown,
       AppColors.secondaryOrange,
       AppColors.secondaryBlue,
       AppColors.secondaryGreen,
+      AppColors.secondaryRed,
+      const Color(0xFF7E57C2),
+      const Color(0xFF00ACC1),
+      const Color(0xFFF06292),
+      const Color(0xFF3949AB),
+      const Color(0xFF00897B),
+      const Color(0xFFFDD835),
+      const Color(0xFF6D4C41),
     ];
 
     return usageSummary.asMap().entries.map((entry) {
@@ -1857,7 +1968,15 @@ class _ReportScreenState extends State<ReportScreen> {
         'label': item['label'] as String,
         'value': item['value'] as double,
         'unit': item['unit']?.toString() ?? 'kg',
-        'color': colors[index % colors.length],
+        'color':
+            index < colors.length
+                ? colors[index]
+                : HSVColor.fromAHSV(
+                  1,
+                  (index * 137.508) % 360,
+                  0.72,
+                  0.78,
+                ).toColor(),
       };
     }).toList();
   }
@@ -1870,7 +1989,7 @@ class _ReportScreenState extends State<ReportScreen> {
       (sum, item) => sum + (item['value'] as double),
     );
     if (total == 0) {
-      return usageBars;
+      return [];
     }
 
     return usageBars
@@ -1878,6 +1997,8 @@ class _ReportScreenState extends State<ReportScreen> {
           (entry) => {
             'label': entry['label'],
             'value': ((entry['value'] as double) / total) * 100,
+            'amount': entry['value'],
+            'unit': entry['unit'],
             'color': entry['color'],
           },
         )

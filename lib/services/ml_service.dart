@@ -3,10 +3,8 @@ import 'dart:async';
 import 'dart:convert';
 
 class MLService {
-  // API URL - Change based on environment
-  // Untuk emulator Android: 10.0.2.2
-  // Untuk device fisik: 192.168.x.x atau 127.0.0.1 kalau local
-  static const String baseUrl = 'http://10.0.2.2:5000';
+  // API URL Railway production backend.
+  static const String baseUrl = 'https://web-production-c3c06.up.railway.app';
 
   static const int timeoutSeconds = 30;
 

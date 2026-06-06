@@ -125,45 +125,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Pengaturan',
               style: AppTextStyles.headlineLarge.copyWith(color: Colors.white),
             ),
+            actions: [
+              IconButton(
+                tooltip: 'Refresh',
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                onPressed: _loadAccount,
+              ),
+            ],
           ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle('Akun'),
-                  const SizedBox(height: 16),
-                  _buildAccountCard(),
-                  const SizedBox(height: 32),
-                  _buildSectionTitle('Keamanan'),
-                  const SizedBox(height: 16),
-                  _buildActionCard(
-                    icon: Icons.lock_outlined,
-                    title: 'Ubah Password',
-                    subtitle: 'Verifikasi OTP melalui email akun',
-                    onTap: _showResetPasswordDialog,
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _showLogoutDialog,
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Logout'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.statusError,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+          body: RefreshIndicator(
+            onRefresh: _loadAccount,
+            color: AppColors.primaryBrown,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('Akun'),
+                    const SizedBox(height: 16),
+                    _buildAccountCard(),
+                    const SizedBox(height: 32),
+                    _buildSectionTitle('Keamanan'),
+                    const SizedBox(height: 16),
+                    _buildActionCard(
+                      icon: Icons.lock_outlined,
+                      title: 'Ubah Password',
+                      subtitle: 'Verifikasi OTP melalui email akun',
+                      onTap: _showResetPasswordDialog,
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _showLogoutDialog,
+                        icon: const Icon(Icons.logout),
+                        label: const Text('Logout'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.statusError,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                  _buildAppInfo(),
-                ],
+                    const SizedBox(height: 32),
+                    _buildAppInfo(),
+                  ],
+                ),
               ),
             ),
           ),

@@ -45,6 +45,10 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
     _controller.loadProducts();
   }
 
+  Future<void> _refreshProducts() {
+    return _controller.loadProducts();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -111,6 +115,25 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                               ),
                             ],
                           ),
+                          const Spacer(),
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: IconButton(
+                              tooltip: 'Refresh',
+                              icon: const Icon(
+                                Icons.refresh,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              onPressed: _refreshProducts,
+                              padding: EdgeInsets.zero,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -155,7 +178,7 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
             ),
           ),
           body: RefreshIndicator(
-            onRefresh: _controller.loadProducts,
+            onRefresh: _refreshProducts,
             color: AppColors.primaryBrown,
             child:
                 _controller.isLoading

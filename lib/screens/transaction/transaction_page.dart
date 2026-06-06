@@ -48,6 +48,20 @@ class _TransactionScreenState extends State<TransactionScreen> {
     );
   }
 
+  Future<void> _refreshProducts() async {
+    try {
+      await _controller.loadProducts();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Gagal memuat data produk'),
+          backgroundColor: AppColors.statusError,
+        ),
+      );
+    }
+  }
+
   Future<void> _submitAllTransactions() async {
     final result = await _controller.submitAllTransactions();
 
@@ -504,115 +518,24 @@ class _TransactionScreenState extends State<TransactionScreen> {
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.pop(context),
             ),
+            actions: [
+              IconButton(
+                tooltip: 'Refresh',
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                onPressed: _refreshProducts,
+              ),
+            ],
           ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgWhite,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [AppColors.shadowLight],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Pilih Produk',
-                          style: AppTextStyles.headlineSmall.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Produk',
-                          style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: _controller.selectedProduct,
-                          decoration: InputDecoration(
-                            hintText: 'Pilih produk',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            filled: true,
-                            fillColor: AppColors.bgLight,
-                          ),
-                          items:
-                              _controller.products
-                                  .map(
-                                    (product) => DropdownMenuItem(
-                                      value: product,
-                                      child: Text(product),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged: _controller.setSelectedProduct,
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Jumlah',
-                          style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _controller.quantityController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: 'Masukkan jumlah unit',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            filled: true,
-                            fillColor: AppColors.bgLight,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _addToCart,
-                            icon: const Icon(Icons.add_shopping_cart),
-                            label: const Text('Tambah ke Keranjang'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primaryBrown,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _showAddProductDialog,
-                            icon: const Icon(Icons.add_circle_outline),
-                            label: const Text('Tambah Produk Baru'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              side: BorderSide(color: AppColors.secondaryBlue),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  if (_controller.cartItems.isNotEmpty) ...[
+          body: RefreshIndicator(
+            onRefresh: _refreshProducts,
+            color: AppColors.primaryBrown,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -623,282 +546,96 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Keranjang (${_controller.cartItems.length})',
-                                style: AppTextStyles.headlineSmall.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: _controller.clearCart,
-                                child: Text(
-                                  'Hapus Semua',
-                                  style: AppTextStyles.labelMedium.copyWith(
-                                    color: AppColors.statusError,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _controller.cartItems.length,
-                            itemBuilder: (context, index) {
-                              final item = _controller.cartItems[index];
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.bgLight,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: AppColors.grey300),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                item.productName,
-                                                style: AppTextStyles.labelLarge
-                                                    .copyWith(
-                                                      color:
-                                                          AppColors.textPrimary,
-                                                    ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Rp ${item.unitPrice} / unit',
-                                                style: AppTextStyles.labelSmall
-                                                    .copyWith(
-                                                      color:
-                                                          AppColors
-                                                              .textSecondary,
-                                                    ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Text(
-                                          'Rp ${item.totalPrice}',
-                                          style: AppTextStyles.labelLarge
-                                              .copyWith(
-                                                color: AppColors.statusSuccess,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            GestureDetector(
-                                              onTap:
-                                                  () => _controller
-                                                      .updateQuantity(
-                                                        index,
-                                                        item.quantity - 1,
-                                                      ),
-                                              child: Container(
-                                                width: 32,
-                                                height: 32,
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.primaryBrown,
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.remove,
-                                                  color: Colors.white,
-                                                  size: 18,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Text(
-                                              item.quantity.toString(),
-                                              style: AppTextStyles.labelLarge
-                                                  .copyWith(
-                                                    color:
-                                                        AppColors.textPrimary,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            GestureDetector(
-                                              onTap:
-                                                  () => _controller
-                                                      .updateQuantity(
-                                                        index,
-                                                        item.quantity + 1,
-                                                      ),
-                                              child: Container(
-                                                width: 32,
-                                                height: 32,
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.primaryBrown,
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.add,
-                                                  color: Colors.white,
-                                                  size: 18,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        GestureDetector(
-                                          onTap:
-                                              () => _controller.removeFromCart(
-                                                index,
-                                              ),
-                                          child: Container(
-                                            width: 32,
-                                            height: 32,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.statusError
-                                                  .withValues(alpha: 0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: Icon(
-                                              Icons.delete,
-                                              color: AppColors.statusError,
-                                              size: 18,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Total Pembayaran',
-                                style: AppTextStyles.labelLarge.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                'Rp ${_controller.totalPrice}',
-                                style: AppTextStyles.headlineSmall.copyWith(
-                                  color: AppColors.primaryBrown,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'Pilih Produk',
+                            style: AppTextStyles.headlineSmall.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Tanggal Stok Masuk',
+                            'Produk',
                             style: AppTextStyles.labelLarge.copyWith(
                               color: AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate:
-                                    _controller.selectedDate ?? DateTime.now(),
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime.now(),
-                              );
-                              if (picked != null &&
-                                  picked != _controller.selectedDate) {
-                                _controller.setSelectedDate(picked);
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
+                          DropdownButtonFormField<String>(
+                            value: _controller.selectedProduct,
+                            decoration: InputDecoration(
+                              hintText: 'Pilih produk',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.grey300),
-                                borderRadius: BorderRadius.circular(8),
+                              filled: true,
+                              fillColor: AppColors.bgLight,
+                            ),
+                            items:
+                                _controller.products
+                                    .map(
+                                      (product) => DropdownMenuItem(
+                                        value: product,
+                                        child: Text(product),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: _controller.setSelectedProduct,
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Jumlah',
+                            style: AppTextStyles.labelLarge.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _controller.quantityController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              hintText: 'Masukkan jumlah unit',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.calendar_today,
-                                    color: AppColors.primaryBrown,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    _controller.selectedDate != null
-                                        ? '${_controller.selectedDate!.day}/${_controller.selectedDate!.month}/${_controller.selectedDate!.year}'
-                                        : 'Pilih tanggal',
-                                    style: AppTextStyles.bodyMedium,
-                                  ),
-                                ],
-                              ),
+                              filled: true,
+                              fillColor: AppColors.bgLight,
                             ),
                           ),
                           const SizedBox(height: 24),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed:
-                                  _controller.isLoading
-                                      ? null
-                                      : _submitAllTransactions,
+                              onPressed: _addToCart,
+                              icon: const Icon(Icons.add_shopping_cart),
+                              label: const Text('Tambah ke Keranjang'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primaryBrown,
-                                foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
+                                  vertical: 12,
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              icon:
-                                  _controller.isLoading
-                                      ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                      : const Icon(Icons.check_circle),
-                              label: Text(
-                                _controller.isLoading
-                                    ? 'Menyimpan...'
-                                    : 'Simpan Stok Masuk',
-                                style: AppTextStyles.labelLarge,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _showAddProductDialog,
+                              icon: const Icon(Icons.add_circle_outline),
+                              label: const Text('Tambah Produk Baru'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                side: BorderSide(
+                                  color: AppColors.secondaryBlue,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             ),
                           ),
@@ -906,98 +643,406 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                  ],
-                  Text(
-                    'Riwayat Stok Masuk (${_controller.transactions.length})',
-                    style: AppTextStyles.headlineSmall.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_controller.transactions.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32.0),
+                    if (_controller.cartItems.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.bgWhite,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [AppColors.shadowLight],
+                        ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.inbox,
-                              size: 64,
-                              color: AppColors.grey300,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Keranjang (${_controller.cartItems.length})',
+                                  style: AppTextStyles.headlineSmall.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: _controller.clearCart,
+                                  child: Text(
+                                    'Hapus Semua',
+                                    style: AppTextStyles.labelMedium.copyWith(
+                                      color: AppColors.statusError,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _controller.cartItems.length,
+                              itemBuilder: (context, index) {
+                                final item = _controller.cartItems[index];
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.bgLight,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: AppColors.grey300,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item.productName,
+                                                  style: AppTextStyles
+                                                      .labelLarge
+                                                      .copyWith(
+                                                        color:
+                                                            AppColors
+                                                                .textPrimary,
+                                                      ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Rp ${item.unitPrice} / unit',
+                                                  style: AppTextStyles
+                                                      .labelSmall
+                                                      .copyWith(
+                                                        color:
+                                                            AppColors
+                                                                .textSecondary,
+                                                      ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Text(
+                                            'Rp ${item.totalPrice}',
+                                            style: AppTextStyles.labelLarge
+                                                .copyWith(
+                                                  color:
+                                                      AppColors.statusSuccess,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              GestureDetector(
+                                                onTap:
+                                                    () => _controller
+                                                        .updateQuantity(
+                                                          index,
+                                                          item.quantity - 1,
+                                                        ),
+                                                child: Container(
+                                                  width: 32,
+                                                  height: 32,
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        AppColors.primaryBrown,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.remove,
+                                                    color: Colors.white,
+                                                    size: 18,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                item.quantity.toString(),
+                                                style: AppTextStyles.labelLarge
+                                                    .copyWith(
+                                                      color:
+                                                          AppColors.textPrimary,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              GestureDetector(
+                                                onTap:
+                                                    () => _controller
+                                                        .updateQuantity(
+                                                          index,
+                                                          item.quantity + 1,
+                                                        ),
+                                                child: Container(
+                                                  width: 32,
+                                                  height: 32,
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        AppColors.primaryBrown,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.add,
+                                                    color: Colors.white,
+                                                    size: 18,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          GestureDetector(
+                                            onTap:
+                                                () => _controller
+                                                    .removeFromCart(index),
+                                            child: Container(
+                                              width: 32,
+                                              height: 32,
+                                              decoration: BoxDecoration(
+                                                color: AppColors.statusError
+                                                    .withValues(alpha: 0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Icon(
+                                                Icons.delete,
+                                                color: AppColors.statusError,
+                                                size: 18,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total Pembayaran',
+                                  style: AppTextStyles.labelLarge.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  'Rp ${_controller.totalPrice}',
+                                  style: AppTextStyles.headlineSmall.copyWith(
+                                    color: AppColors.primaryBrown,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Belum ada Stok Masuk',
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
+                              'Tanggal Stok Masuk',
+                              style: AppTextStyles.labelLarge.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate:
+                                      _controller.selectedDate ??
+                                      DateTime.now(),
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime.now(),
+                                );
+                                if (picked != null &&
+                                    picked != _controller.selectedDate) {
+                                  _controller.setSelectedDate(picked);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: AppColors.grey300),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.calendar_today,
+                                      color: AppColors.primaryBrown,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      _controller.selectedDate != null
+                                          ? '${_controller.selectedDate!.day}/${_controller.selectedDate!.month}/${_controller.selectedDate!.year}'
+                                          : 'Pilih tanggal',
+                                      style: AppTextStyles.bodyMedium,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed:
+                                    _controller.isLoading
+                                        ? null
+                                        : _submitAllTransactions,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryBrown,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                icon:
+                                    _controller.isLoading
+                                        ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                          ),
+                                        )
+                                        : const Icon(Icons.check_circle),
+                                label: Text(
+                                  _controller.isLoading
+                                      ? 'Menyimpan...'
+                                      : 'Simpan Stok Masuk',
+                                  style: AppTextStyles.labelLarge,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    )
-                  else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _controller.transactions.length,
-                      itemBuilder: (context, index) {
-                        final tx = _controller.transactions[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.bgWhite,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.grey200),
-                          ),
+                      const SizedBox(height: 24),
+                    ],
+                    Text(
+                      'Riwayat Stok Masuk (${_controller.transactions.length})',
+                      style: AppTextStyles.headlineSmall.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_controller.transactions.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32.0),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    tx.productName,
-                                    style: AppTextStyles.labelLarge.copyWith(
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Rp ${tx.totalPrice}',
-                                    style: AppTextStyles.labelLarge.copyWith(
-                                      color: AppColors.statusSuccess,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
+                              Icon(
+                                Icons.inbox,
+                                size: 64,
+                                color: AppColors.grey300,
                               ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '${tx.quantity} unit × Rp ${tx.unitPrice}',
-                                    style: AppTextStyles.labelMedium.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${tx.date.day}/${tx.date.month}/${tx.date.year}',
-                                    style: AppTextStyles.labelSmall.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
+                              const SizedBox(height: 16),
+                              Text(
+                                'Belum ada Stok Masuk',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ],
                           ),
-                        );
-                      },
-                    ),
-                ],
+                        ),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _controller.transactions.length,
+                        itemBuilder: (context, index) {
+                          final tx = _controller.transactions[index];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgWhite,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.grey200),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      tx.productName,
+                                      style: AppTextStyles.labelLarge.copyWith(
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Rp ${tx.totalPrice}',
+                                      style: AppTextStyles.labelLarge.copyWith(
+                                        color: AppColors.statusSuccess,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '${tx.quantity} unit × Rp ${tx.unitPrice}',
+                                      style: AppTextStyles.labelMedium.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${tx.date.day}/${tx.date.month}/${tx.date.year}',
+                                      style: AppTextStyles.labelSmall.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

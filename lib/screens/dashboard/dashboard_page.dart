@@ -36,6 +36,10 @@ class _DashboardScreenState extends State<DashboardScreen> with RouteAware {
     _controller.loadDashboard(showLoading: false);
   }
 
+  Future<void> _refreshDashboard() {
+    return _controller.loadDashboard(showLoading: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
@@ -69,6 +73,25 @@ class _DashboardScreenState extends State<DashboardScreen> with RouteAware {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: IconButton(
+                                  tooltip: 'Refresh',
+                                  icon: const Icon(
+                                    Icons.refresh,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  onPressed: _refreshDashboard,
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
                               Stack(
                                 children: [
                                   Container(
@@ -188,232 +211,244 @@ class _DashboardScreenState extends State<DashboardScreen> with RouteAware {
               ),
             ),
           ),
-          body: SingleChildScrollView(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.bgWhite,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [AppColors.shadowLight],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Penggunaan Bahan',
-                                      style: AppTextStyles.headlineSmall
-                                          .copyWith(
-                                            color: AppColors.textPrimary,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Top 5 bahan paling sering digunakan',
-                                      style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.textTertiary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Icon(
-                                  Icons.bar_chart_rounded,
-                                  color: AppColors.secondaryBlue,
-                                  size: 20,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            if (_controller.isLoading)
-                              const Center(child: CircularProgressIndicator())
-                            else
-                              Column(
-                                children:
-                                    _controller.penggunaanBahan.map((item) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        child: _buildUsageRow(item),
-                                      );
-                                    }).toList(),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.bgWhite,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [AppColors.shadowLight],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.warning_amber_rounded,
-                                  color: AppColors.statusWarning,
-                                  size: 22,
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Stok Menipis',
-                                  style: AppTextStyles.headlineSmall.copyWith(
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            if (_controller.isLoading)
-                              const Center(child: CircularProgressIndicator())
-                            else if (_controller.lowStockItems.isEmpty)
-                              Text(
-                                'Tidak ada stok kritis',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                              )
-                            else
-                              ..._controller.lowStockItems.map((item) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+          body: RefreshIndicator(
+            onRefresh: _refreshDashboard,
+            color: AppColors.primaryBrown,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgWhite,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [AppColors.shadowLight],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              item['name'],
-                                              style: AppTextStyles.labelLarge
-                                                  .copyWith(
-                                                    color:
-                                                        AppColors.textPrimary,
-                                                  ),
+                                      Text(
+                                        'Penggunaan Bahan',
+                                        style: AppTextStyles.headlineSmall
+                                            .copyWith(
+                                              color: AppColors.textPrimary,
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Stok: ${item['stock']}',
-                                              style: AppTextStyles.bodySmall
-                                                  .copyWith(
-                                                    color:
-                                                        AppColors.textTertiary,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
                                       ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: item['statusColor'],
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          item['status'],
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                          ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Top 5 bahan paling sering digunakan',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textTertiary,
                                         ),
                                       ),
                                     ],
                                   ),
-                                );
-                              }),
+                                  Icon(
+                                    Icons.bar_chart_rounded,
+                                    color: AppColors.secondaryBlue,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              if (_controller.isLoading)
+                                const Center(child: CircularProgressIndicator())
+                              else
+                                Column(
+                                  children:
+                                      _controller.penggunaanBahan.map((item) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: _buildUsageRow(item),
+                                        );
+                                      }).toList(),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgWhite,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [AppColors.shadowLight],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: AppColors.statusWarning,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Stok Menipis',
+                                    style: AppTextStyles.headlineSmall.copyWith(
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              if (_controller.isLoading)
+                                const Center(child: CircularProgressIndicator())
+                              else if (_controller.lowStockItems.isEmpty)
+                                Text(
+                                  'Tidak ada stok kritis',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textTertiary,
+                                  ),
+                                )
+                              else
+                                ..._controller.lowStockItems.map((item) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                item['name'],
+                                                style: AppTextStyles.labelLarge
+                                                    .copyWith(
+                                                      color:
+                                                          AppColors.textPrimary,
+                                                    ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Stok: ${item['stock']}',
+                                                style: AppTextStyles.bodySmall
+                                                    .copyWith(
+                                                      color:
+                                                          AppColors
+                                                              .textTertiary,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: item['statusColor'],
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            item['status'],
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(
+                                    context,
+                                  ).pushNamed('/prediction');
+                                },
+                                icon: const Icon(Icons.trending_up, size: 20),
+                                label: const Text(
+                                  'Lihat Prediksi',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.secondaryBlue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  elevation: 2,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(
+                                    context,
+                                  ).pushNamed('/transaction');
+                                },
+                                icon: const Icon(Icons.check_circle, size: 20),
+                                label: const Text(
+                                  'Tambah Stok',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.statusSuccess,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  elevation: 2,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).pushNamed('/prediction');
-                              },
-                              icon: const Icon(Icons.trending_up, size: 20),
-                              label: const Text(
-                                'Lihat Prediksi',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.secondaryBlue,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                elevation: 2,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).pushNamed('/transaction');
-                              },
-                              icon: const Icon(Icons.check_circle, size: 20),
-                              label: const Text(
-                                'Tambah Stok',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.statusSuccess,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                elevation: 2,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                    ],
+                        const SizedBox(height: 24),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           bottomNavigationBar: BottomNavigationBar(

@@ -61,6 +61,10 @@ class _ReportScreenState extends State<ReportScreen> {
     _controller.startAutoRefresh();
   }
 
+  Future<void> _refreshReports() {
+    return _controller.loadReports();
+  }
+
   double _sectionMaxHeight() {
     final height = MediaQuery.of(context).size.height * 0.35;
     if (height < 220) return 220;
@@ -82,6 +86,13 @@ class _ReportScreenState extends State<ReportScreen> {
           'Laporan & Analitik',
           style: AppTextStyles.headlineLarge.copyWith(color: Colors.white),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _refreshReports,
+          ),
+        ],
       ),
       body: AnimatedBuilder(
         animation: _controller,
@@ -98,7 +109,7 @@ class _ReportScreenState extends State<ReportScreen> {
           final List<double> demandTrend = _controller.demandTrend;
 
           return RefreshIndicator(
-            onRefresh: () => _controller.loadReports(),
+            onRefresh: _refreshReports,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),

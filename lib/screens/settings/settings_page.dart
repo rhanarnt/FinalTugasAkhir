@@ -15,8 +15,8 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late final SettingsController _controller;
-  String _userName = 'Ibu Sulastri';
-  String _userEmail = 'sulastri.aritanto10@gmail.com';
+  String _userName = '';
+  String _userEmail = '';
 
   @override
   void initState() {

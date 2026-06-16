@@ -5,6 +5,7 @@ class Transaction {
   final int quantity;
   final int unitPrice;
   final int totalPrice;
+  final String unit;
   final DateTime date;
 
   Transaction({
@@ -14,6 +15,7 @@ class Transaction {
     required this.quantity,
     required this.unitPrice,
     required this.totalPrice,
+    required this.unit,
     required this.date,
   });
 
@@ -25,6 +27,7 @@ class Transaction {
       quantity: json['quantity'] as int,
       unitPrice: json['unit_price'] as int,
       totalPrice: json['total_price'] as int,
+      unit: (json['unit'] as String?) ?? 'pcs',
       date: DateTime.parse(json['date'] as String),
     );
   }
@@ -37,6 +40,7 @@ class Transaction {
       'quantity': quantity,
       'unit_price': unitPrice,
       'total_price': totalPrice,
+      'unit': unit,
       'date': date.toIso8601String(),
     };
   }
@@ -48,6 +52,7 @@ class Transaction {
     int? quantity,
     int? unitPrice,
     int? totalPrice,
+    String? unit,
     DateTime? date,
   }) {
     return Transaction(
@@ -57,6 +62,7 @@ class Transaction {
       quantity: quantity ?? this.quantity,
       unitPrice: unitPrice ?? this.unitPrice,
       totalPrice: totalPrice ?? this.totalPrice,
+      unit: unit ?? this.unit,
       date: date ?? this.date,
     );
   }

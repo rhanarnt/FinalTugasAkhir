@@ -50,7 +50,7 @@ class DashboardController extends ChangeNotifier {
         _applyPenggunaanBahan(summary['penggunaan_bahan']);
       } else {
         errorMessage = summary['message']?.toString();
-        _applyDummyPenggunaan();
+        penggunaanBahan.clear();
       }
 
       totalProduk = products.length;
@@ -59,7 +59,7 @@ class DashboardController extends ChangeNotifier {
       errorMessage = 'Gagal memuat dashboard: $e';
       bahanDigunakanError = 'Gagal memuat bahan digunakan hari ini';
       _resetBahanDigunakanHariIni();
-      _applyDummyPenggunaan();
+      penggunaanBahan.clear();
       lowStockItems.clear();
     } finally {
       isLoading = false;
@@ -90,7 +90,6 @@ class DashboardController extends ChangeNotifier {
   void _applyPenggunaanBahan(dynamic data) {
     penggunaanBahan.clear();
     if (data is! List || data.isEmpty) {
-      _applyDummyPenggunaan();
       return;
     }
     for (final item in data) {
@@ -131,18 +130,6 @@ class DashboardController extends ChangeNotifier {
     lowStockItems.sort(
       (a, b) => a['name'].toString().compareTo(b['name'].toString()),
     );
-  }
-
-  void _applyDummyPenggunaan() {
-    penggunaanBahan
-      ..clear()
-      ..addAll([
-        {'name': 'Tepung Terigu', 'total': 120.0, 'unit': 'kg'},
-        {'name': 'Gula', 'total': 80.0, 'unit': 'kg'},
-        {'name': 'Mentega', 'total': 45.0, 'unit': 'kg'},
-        {'name': 'Telur', 'total': 30.0, 'unit': 'kg'},
-        {'name': 'Coklat Bubuk', 'total': 20.0, 'unit': 'kg'},
-      ]);
   }
 
   String _formatStock(double value) {

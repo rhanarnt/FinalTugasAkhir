@@ -7,25 +7,56 @@ class PredictionController extends ChangeNotifier {
   bool isCalculated = false;
   bool isLoading = true;
   bool isSubmitting = false;
+  bool isPredicting = false;
+  int? predictedDemand;
+  double? predictionRawValue;
+  double? predictionR2;
+  double? predictionMae;
+  double? predictionRmse;
+  String? predictionModelProduct;
 
   List<Map<String, dynamic>> recipes = [];
   Map<String, Map<String, dynamic>> recipeIngredients = {};
   Map<String, bool> ingredientSelections = {};
 
-  final Map<String, double> currentStock = {
-    'Tepung Terigu 1kg': 45000,
-    'Telur 1kg': 12,
-    'Gula Pasir 1kg': 28000,
-    'Susu Bubuk': 8000,
-    'Cokelat Bubuk 250gr': 22000,
-    'Mentega 500gr': 15000,
-    'Keju Parut 250gr': 3000,
-    'Baking Powder': 60000,
-  };
+  final Map<String, double> currentStock = {};
   final Map<String, int> productIds = {};
   final Map<String, String> productUnits = {};
+  final Map<String, String> productCategories = {};
+  final Map<String, int> productPrices = {};
 
   static const double eggGramPerButir = 50;
+  static const Map<String, double> datasetPackageSizes = {
+    'Baking Powder 45gr': 45,
+    'Cokelat Bubuk 250gr': 250,
+    'Gula Pasir 1kg': 1000,
+    'Keju Parut 250gr': 250,
+    'Mentega 500gr': 500,
+    'Susu Bubuk 27gr': 27,
+    'Susu Bubuk': 27,
+    'Telur 1kg': 1000,
+    'Tepung Terigu 1kg': 1000,
+  };
+  static const Map<String, String> datasetCategories = {
+    'Baking Powder 45gr': 'Bahan Tambahan',
+    'Cokelat Bubuk 250gr': 'Cokelat',
+    'Gula Pasir 1kg': 'Gula',
+    'Keju Parut 250gr': 'Keju',
+    'Mentega 500gr': 'Mentega',
+    'Susu Bubuk 27gr': 'Susu',
+    'Telur 1kg': 'Telur',
+    'Tepung Terigu 1kg': 'Tepung',
+  };
+  static const Map<String, int> datasetMedianPrices = {
+    'Baking Powder 45gr': 8180,
+    'Cokelat Bubuk 250gr': 21036,
+    'Gula Pasir 1kg': 14608,
+    'Keju Parut 250gr': 23373,
+    'Mentega 500gr': 17529,
+    'Susu Bubuk 27gr': 17529,
+    'Telur 1kg': 26878,
+    'Tepung Terigu 1kg': 11687,
+  };
 
   Future<String?> loadRecipes() async {
     isLoading = true;
@@ -82,6 +113,8 @@ class PredictionController extends ChangeNotifier {
     currentStock.clear();
     productIds.clear();
     productUnits.clear();
+    productCategories.clear();
+    productPrices.clear();
 
     for (final product in products) {
       final name =
@@ -91,6 +124,8 @@ class PredictionController extends ChangeNotifier {
       final id = _toInt(product['id']);
       final unit = (product['unit'] ?? '').toString();
       final stock = _toDouble(product['current_stock'] ?? product['stock']);
+      final category = (product['category'] ?? '').toString();
+      final price = _toInt(product['price'] ?? product['unit_price']) ?? 0;
 
       currentStock[name] = stock;
       if (id != null) {
@@ -99,12 +134,17 @@ class PredictionController extends ChangeNotifier {
       if (unit.isNotEmpty) {
         productUnits[name] = unit;
       }
+      if (category.isNotEmpty) {
+        productCategories[name] = category;
+      }
+      productPrices[name] = price;
     }
   }
 
   void setSelectedRecipe(String? value) {
     selectedRecipe = value;
     isCalculated = false;
+    _clearPredictionResult();
     _initializeIngredientSelections();
     notifyListeners();
   }
@@ -112,20 +152,84 @@ class PredictionController extends ChangeNotifier {
   void setProductionQuantity(String value) {
     productionQuantity = int.tryParse(value) ?? 0;
     isCalculated = false;
+    _clearPredictionResult();
     notifyListeners();
   }
 
-  bool get canCalculate => selectedRecipe != null && productionQuantity > 0;
+  bool get canCalculate => selectedRecipe != null && !isPredicting;
 
-  void calculate() {
-    isCalculated = true;
+  Future<String?> calculate() async {
+    if (selectedRecipe == null) {
+      return 'Pilih produk terlebih dahulu';
+    }
+
+    isPredicting = true;
+    isCalculated = false;
+    _clearPredictionResult();
     notifyListeners();
+
+    try {
+      await refreshStock();
+
+      final recipeIngredient = _primaryIngredientForPrediction();
+      if (recipeIngredient == null) {
+        return 'Resep ini belum memiliki bahan yang cocok dengan dataset model';
+      }
+      final modelProduct = _datasetProductName(recipeIngredient)!;
+
+      final manualQuantity = productionQuantity;
+      final plannedQuantity = manualQuantity > 0 ? manualQuantity : 1;
+      final result = await MLService.simplePrediksi(
+        productName: modelProduct,
+        category: _datasetCategory(modelProduct),
+        unitPrice: _datasetPrice(modelProduct),
+        plannedQuantity: plannedQuantity,
+      );
+
+      if (result['status'] != 'success') {
+        return result['message']?.toString() ?? 'Prediksi gagal diproses';
+      }
+
+      final prediction = result['prediksi'] as Map<String, dynamic>? ?? {};
+      final accuracy = result['model_accuracy'] as Map<String, dynamic>? ?? {};
+      final rawValue = _toDouble(prediction['nilai_raw']);
+      final demand =
+          _toInt(prediction['jumlah_unit']) ??
+          rawValue.round().clamp(1, 999999).toInt();
+      final demandInStockUnit = _datasetDemandToStockUnit(
+        ingredient: recipeIngredient,
+        demand: demand.toDouble(),
+      );
+      final perUnitNeed = _quantityPerUnitInStockUnit(recipeIngredient);
+      final modelProduction =
+          perUnitNeed > 0 ? (demandInStockUnit / perUnitNeed).round() : demand;
+
+      productionQuantity =
+          manualQuantity > 0
+              ? manualQuantity
+              : modelProduction.clamp(1, 999999);
+      predictedDemand = manualQuantity > 0 ? manualQuantity : demand;
+      predictionRawValue = rawValue;
+      predictionR2 = _toDouble(accuracy['r2_score']);
+      predictionMae = _toDouble(accuracy['mae']);
+      predictionRmse = _toDouble(accuracy['rmse']);
+      predictionModelProduct = modelProduct;
+      isCalculated = true;
+
+      return null;
+    } catch (e) {
+      return 'Gagal menjalankan prediksi Random Forest: $e';
+    } finally {
+      isPredicting = false;
+      notifyListeners();
+    }
   }
 
   void reset() {
     selectedRecipe = null;
     productionQuantity = 0;
     isCalculated = false;
+    _clearPredictionResult();
     ingredientSelections = {};
     notifyListeners();
   }
@@ -213,6 +317,20 @@ class PredictionController extends ChangeNotifier {
   int? getProductId(String ingredient) {
     final key = _matchingProductName(ingredient);
     return key == null ? productIds[ingredient] : productIds[key];
+  }
+
+  String getProductCategory(String ingredient) {
+    final key = _matchingProductName(ingredient);
+    return key == null
+        ? productCategories[ingredient] ?? 'Bahan Tambahan'
+        : productCategories[key] ?? 'Bahan Tambahan';
+  }
+
+  int getProductPrice(String ingredient) {
+    final key = _matchingProductName(ingredient);
+    return key == null
+        ? productPrices[ingredient] ?? 0
+        : productPrices[key] ?? 0;
   }
 
   double toGram({required double amount, required String unit}) {
@@ -308,8 +426,11 @@ class PredictionController extends ChangeNotifier {
     required String ingredient,
     required double amount,
     required String fromUnit,
+    String? overrideStockUnit,
   }) {
-    final stockUnit = _normalizeUnit(getStockUnit(ingredient));
+    final stockUnit = _normalizeUnit(
+      overrideStockUnit ?? getStockUnit(ingredient),
+    );
     final unit = _normalizeUnit(fromUnit);
 
     if (unit == stockUnit) return amount;
@@ -356,6 +477,129 @@ class PredictionController extends ChangeNotifier {
     }
 
     return null;
+  }
+
+  String? _datasetProductName(String ingredient) {
+    final value = ingredient.toLowerCase();
+
+    if (value.contains('tepung terigu') || value == 'tepung') {
+      return 'Tepung Terigu 1kg';
+    }
+    if (value.contains('telur')) return 'Telur 1kg';
+    if (value.contains('gula pasir') || value == 'gula') {
+      return 'Gula Pasir 1kg';
+    }
+    if (value.contains('susu bubuk') || value == 'susu') {
+      return 'Susu Bubuk 27gr';
+    }
+    if (value.contains('cokelat') || value.contains('coklat')) {
+      return 'Cokelat Bubuk 250gr';
+    }
+    if (value.contains('mentega')) return 'Mentega 500gr';
+    if (value.contains('keju')) return 'Keju Parut 250gr';
+    if (value.contains('baking powder')) return 'Baking Powder 45gr';
+
+    return null;
+  }
+
+  String _datasetCategory(String datasetProductName) {
+    return datasetCategories[datasetProductName] ?? 'Bahan Tambahan';
+  }
+
+  int _datasetPrice(String datasetProductName) {
+    return datasetMedianPrices[datasetProductName] ?? 1;
+  }
+
+  void _clearPredictionResult() {
+    predictedDemand = null;
+    predictionRawValue = null;
+    predictionR2 = null;
+    predictionMae = null;
+    predictionRmse = null;
+    predictionModelProduct = null;
+  }
+
+  String? _primaryIngredientForPrediction() {
+    if (selectedRecipe == null) return null;
+
+    final ingredients = recipeIngredients[selectedRecipe] ?? {};
+    if (ingredients.isEmpty) return null;
+
+    String? selectedIngredient;
+    double highestNeed = -1;
+
+    ingredients.forEach((ingredient, details) {
+      if (!isIngredientSelected(ingredient)) return;
+      if (_datasetProductName(ingredient) == null) return;
+
+      final quantity = _toDouble(details['quantity']);
+      final unit = details['unit']?.toString() ?? getIngredientUnit(ingredient);
+      final stockNeed = _convertToStockUnit(
+        ingredient: ingredient,
+        amount: quantity,
+        fromUnit: unit,
+      );
+
+      if (stockNeed > highestNeed) {
+        highestNeed = stockNeed;
+        selectedIngredient = ingredient;
+      }
+    });
+
+    return selectedIngredient;
+  }
+
+  double _quantityPerUnitInStockUnit(String ingredient) {
+    if (selectedRecipe == null) return 0;
+    final details = recipeIngredients[selectedRecipe]?[ingredient];
+    if (details == null) return 0;
+
+    return _convertToStockUnit(
+      ingredient: ingredient,
+      amount: _toDouble(details['quantity']),
+      fromUnit: details['unit']?.toString() ?? getIngredientUnit(ingredient),
+    );
+  }
+
+  double _datasetDemandToStockUnit({
+    required String ingredient,
+    required double demand,
+  }) {
+    final packageGram = _datasetPackageGram(ingredient);
+    return _convertToStockUnit(
+      ingredient: ingredient,
+      amount: demand * packageGram,
+      fromUnit: 'gr',
+      overrideStockUnit: getStockUnit(ingredient),
+    );
+  }
+
+  double _datasetPackageGram(String ingredient) {
+    final matchedName = _matchingProductName(ingredient) ?? ingredient;
+
+    for (final entry in datasetPackageSizes.entries) {
+      if (_ingredientKey(entry.key) == _ingredientKey(matchedName) ||
+          _ingredientKey(entry.key) == _ingredientKey(ingredient)) {
+        return entry.value;
+      }
+    }
+
+    final lower = matchedName.toLowerCase();
+    final gramMatch = RegExp(
+      r'(\d+(?:[,.]\d+)?)\s*(gr|g|gram)\b',
+    ).firstMatch(lower);
+    if (gramMatch != null) {
+      return double.parse(gramMatch.group(1)!.replaceAll(',', '.'));
+    }
+
+    final kgMatch = RegExp(
+      r'(\d+(?:[,.]\d+)?)\s*(kg|kilogram)\b',
+    ).firstMatch(lower);
+    if (kgMatch != null) {
+      return double.parse(kgMatch.group(1)!.replaceAll(',', '.')) * 1000;
+    }
+
+    return 1000;
   }
 
   Map<String, double> get stockUsage {
@@ -447,7 +691,10 @@ class PredictionController extends ChangeNotifier {
           unitPrice: 0,
           predictionDate: DateTime.now().toIso8601String().split('T').first,
           predictedQuantity: productionQuantity,
+          rawValue: predictionRawValue,
           estimatedNeeds: buildEstimatedNeedsText(),
+          accuracyR2: predictionR2,
+          errorMae: predictionMae,
         );
 
         for (final entry in usage.entries) {

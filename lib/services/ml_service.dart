@@ -3,8 +3,9 @@ import 'dart:async';
 import 'dart:convert';
 
 class MLService {
-  // API URL Railway production backend.
-  static const String baseUrl = 'https://web-production-c3c06.up.railway.app';
+  // API URL local Flask backend.
+  static const String baseUrl = 'http://192.168.1.67:5000';
+  //https://web-production-c3c06.up.railway.app/api
 
   static const int timeoutSeconds = 30;
 
@@ -174,49 +175,34 @@ class MLService {
     required String productName,
     required String category,
     required int unitPrice,
+    int plannedQuantity = 1,
     DateTime? predictionDate,
   }) async {
     try {
       final date = predictionDate ?? DateTime.now();
 
-      // Map product names to encoded values (adjust based on your encoding)
-      final productMap = {
-        'Tepung Terigu 1kg': 1,
-        'Telur 1kg': 2,
-        'Gula Pasir 1kg': 3,
-        'Susu Bubuk': 4,
-        'Cokelat Bubuk 250gr': 5,
-        'Mentega 500gr': 6,
-        'Keju Parut 250gr': 7,
-        'Baking Powder': 8,
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/prediksi'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'product_name': productName,
+              'category': category,
+              'unit_price': unitPrice,
+              'planned_quantity': plannedQuantity,
+              'prediction_date': date.toIso8601String().split('T').first,
+            }),
+          )
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+
+      return {
+        'status': 'error',
+        'message': 'Server error: ${response.statusCode}',
       };
-
-      final categoryMap = {
-        'Tepung': 1,
-        'Telur': 2,
-        'Gula': 3,
-        'Susu': 4,
-        'Cokelat': 5,
-        'Mentega': 6,
-        'Keju': 7,
-        'Bahan Tambahan': 8,
-      };
-
-      final produkEncoded = productMap[productName] ?? 1;
-      final kategoriEncoded = categoryMap[category] ?? 1;
-
-      return await prediksiStok(
-        tahun: date.year,
-        bulan: date.month,
-        hari: date.day,
-        hariDalamMinggu: date.weekday,
-        hariMinggu: date.weekday,
-        hargaSatuanUpdate: unitPrice,
-        totalHargaUpdate: unitPrice, // Simplified
-        produkEncoded: produkEncoded,
-        namaProdukEncoded: produkEncoded,
-        kategoriProdukEncoded: kategoriEncoded,
-      );
     } catch (e) {
       return {'status': 'error', 'message': 'Connection error: $e'};
     }
@@ -564,6 +550,53 @@ class MLService {
     } catch (e) {
       print('Get product error: $e');
       return null;
+    }
+  }
+
+  /// Update product in database
+  static Future<Map<String, dynamic>> updateProduct({
+    required int productId,
+    String? name,
+    String? category,
+    int? price,
+    double? currentStock,
+    double? minStock,
+    String? unit,
+  }) async {
+    try {
+      final data = {
+        if (name != null) 'name': name,
+        if (category != null) 'category': category,
+        if (price != null) 'price': price,
+        if (currentStock != null) 'current_stock': currentStock,
+        if (minStock != null) 'min_stock': minStock,
+        if (unit != null) 'unit': unit,
+      };
+
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl/products/$productId'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(data),
+          )
+          .timeout(Duration(seconds: timeoutSeconds));
+
+      final body =
+          response.body.isNotEmpty
+              ? jsonDecode(response.body) as Map<String, dynamic>
+              : <String, dynamic>{};
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return body;
+      }
+
+      return {
+        'status': 'error',
+        'message': body['message'] ?? 'Server error: ${response.statusCode}',
+      };
+    } catch (e) {
+      print('Update product error: $e');
+      return {'status': 'error', 'message': 'Connection error: $e'};
     }
   }
 

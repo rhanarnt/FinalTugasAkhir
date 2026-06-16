@@ -25,13 +25,12 @@ class AuthService {
 
   static Future<String> getUserName() async {
     final preferences = await SharedPreferences.getInstance();
-    return preferences.getString(_userNameKey) ?? 'Ibu Sulastri';
+    return preferences.getString(_userNameKey) ?? '';
   }
 
   static Future<String> getUserEmail() async {
     final preferences = await SharedPreferences.getInstance();
-    return preferences.getString(_userEmailKey) ??
-        'sulastri.aritanto10@gmail.com';
+    return preferences.getString(_userEmailKey) ?? '';
   }
 
   static Future<void> logout() async {

@@ -702,7 +702,7 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                     icon: Icons.low_priority_outlined,
                     label: 'Minimum',
                     value:
-                        '${_controller.formatStock(product.minStock)} ${product.unit}',
+                        '${_controller.formatStock(product.minStock)} ${_controller.minimumStockUnit(product)}',
                   ),
                   _buildDetailTile(
                     icon: Icons.straighten_outlined,
@@ -791,7 +791,26 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        _showEditProductDialog(product);
+                      },
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Edit'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryBrown,
+                        side: BorderSide(color: AppColors.primaryBrown),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
@@ -817,6 +836,193 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
           ),
         );
       },
+    );
+  }
+
+  void _showEditProductDialog(Product product) {
+    final nameController = TextEditingController(text: product.name);
+    final categoryController = TextEditingController(text: product.category);
+    final priceController = TextEditingController(
+      text: product.price.toString(),
+    );
+    final stockController = TextEditingController(
+      text: _controller.formatStock(product.stock),
+    );
+    final minStockController = TextEditingController(
+      text: _controller.formatStock(product.minStock),
+    );
+    final unitOptions = ['kg', 'gr', 'L', 'ml', 'butir', 'pcs'];
+    var selectedUnit = product.unit == 'l' ? 'L' : product.unit;
+    if (!unitOptions.contains(selectedUnit)) {
+      selectedUnit = product.unit.toLowerCase();
+    }
+    if (!unitOptions.contains(selectedUnit)) {
+      selectedUnit = unitOptions.first;
+    }
+    var isSaving = false;
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setStateDialog) => AlertDialog(
+                  title: const Text('Edit Produk'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Nama Produk',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: categoryController,
+                          decoration: const InputDecoration(
+                            labelText: 'Kategori',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: priceController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Harga'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: stockController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(labelText: 'Stok'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: minStockController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Minimum',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: selectedUnit,
+                          items:
+                              unitOptions
+                                  .map(
+                                    (unit) => DropdownMenuItem(
+                                      value: unit,
+                                      child: Text(unit),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged:
+                              isSaving
+                                  ? null
+                                  : (value) {
+                                    if (value == null) return;
+                                    setStateDialog(() => selectedUnit = value);
+                                  },
+                          decoration: const InputDecoration(
+                            labelText: 'Satuan',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed:
+                          isSaving ? null : () => Navigator.of(context).pop(),
+                      child: const Text('Batal'),
+                    ),
+                    ElevatedButton(
+                      onPressed:
+                          isSaving
+                              ? null
+                              : () async {
+                                final name = nameController.text.trim();
+                                final category = categoryController.text.trim();
+                                final price =
+                                    int.tryParse(priceController.text.trim()) ??
+                                    0;
+                                final stock =
+                                    double.tryParse(
+                                      stockController.text.trim().replaceAll(
+                                        ',',
+                                        '.',
+                                      ),
+                                    ) ??
+                                    -1;
+                                final minStock =
+                                    double.tryParse(
+                                      minStockController.text.trim().replaceAll(
+                                        ',',
+                                        '.',
+                                      ),
+                                    ) ??
+                                    -1;
+
+                                if (name.isEmpty ||
+                                    category.isEmpty ||
+                                    price <= 0 ||
+                                    stock < 0 ||
+                                    minStock < 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text(
+                                        'Isi data produk dengan benar',
+                                      ),
+                                      backgroundColor: AppColors.statusError,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setStateDialog(() => isSaving = true);
+                                final error = await _controller.updateProduct(
+                                  product: product,
+                                  name: name,
+                                  category: category,
+                                  price: price,
+                                  stock: stock,
+                                  minStock: minStock,
+                                  unit: selectedUnit,
+                                );
+
+                                if (!context.mounted) return;
+                                Navigator.of(context).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      error ?? 'Produk berhasil diperbarui',
+                                    ),
+                                    backgroundColor:
+                                        error == null
+                                            ? AppColors.statusSuccess
+                                            : AppColors.statusError,
+                                  ),
+                                );
+                              },
+                      child:
+                          isSaving
+                              ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Text('Simpan'),
+                    ),
+                  ],
+                ),
+          ),
     );
   }
 

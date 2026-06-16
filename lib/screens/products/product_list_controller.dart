@@ -10,6 +10,19 @@ class ProductListController extends ChangeNotifier {
 
   List<Product> products = [];
 
+  static const Map<String, String> datasetUnits = {
+    'Baking Powder 45gr': 'gr',
+    'Baking Powder': 'gr',
+    'Cokelat Bubuk 250gr': 'gr',
+    'Gula Pasir 1kg': 'kg',
+    'Keju Parut 250gr': 'gr',
+    'Mentega 500gr': 'gr',
+    'Susu Bubuk 27gr': 'gr',
+    'Susu Bubuk': 'gr',
+    'Telur 1kg': 'kg',
+    'Tepung Terigu 1kg': 'kg',
+  };
+
   Future<void> loadProducts() async {
     isLoading = true;
     notifyListeners();
@@ -22,12 +35,14 @@ class ProductListController extends ChangeNotifier {
             final stock = StockStatusUtils.parseStock(p['current_stock']);
             final minStock = StockStatusUtils.parseStock(p['min_stock']);
             final category = p['category'] ?? '';
+            final name = p['name'] ?? '';
             final unit =
                 p['unit'] ??
+                datasetUnits[name] ??
                 (category.toString().toLowerCase() == 'barang' ? 'pcs' : 'kg');
             return Product(
               id: p['id'] ?? 0,
-              name: p['name'] ?? '',
+              name: name,
               category: category,
               price: p['price'] ?? 0,
               stock: stock,
@@ -126,6 +141,44 @@ class ProductListController extends ChangeNotifier {
         .toStringAsFixed(3)
         .replaceAll(RegExp(r'0+$'), '')
         .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  String minimumStockUnit(Product product) {
+    final unit = product.unit.toLowerCase();
+    if (product.category.toLowerCase() == 'barang' || unit == 'pcs') {
+      return 'pcs';
+    }
+    if (unit == 'ml' || unit == 'l') {
+      return 'L';
+    }
+    return 'kg';
+  }
+
+  Future<String?> updateProduct({
+    required Product product,
+    required String name,
+    required String category,
+    required int price,
+    required double stock,
+    required double minStock,
+    required String unit,
+  }) async {
+    final result = await MLService.updateProduct(
+      productId: product.id,
+      name: name,
+      category: category,
+      price: price,
+      currentStock: stock,
+      minStock: minStock,
+      unit: unit,
+    );
+
+    if (result['status'] != 'success') {
+      return result['message']?.toString() ?? 'Gagal mengubah produk';
+    }
+
+    await loadProducts();
+    return null;
   }
 
   String getStatusLabel(String status) {

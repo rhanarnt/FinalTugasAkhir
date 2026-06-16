@@ -7,6 +7,7 @@ class CartItem {
   final String productName;
   final String category;
   final int unitPrice;
+  final String unit;
   int quantity;
 
   CartItem({
@@ -14,6 +15,7 @@ class CartItem {
     required this.productName,
     required this.category,
     required this.unitPrice,
+    required this.unit,
     required this.quantity,
   });
 
@@ -109,6 +111,9 @@ class TransactionController extends ChangeNotifier {
           productName: selectedProduct!,
           category: productCategories[selectedProduct!]!,
           unitPrice: productPrices[selectedProduct!]!,
+          unit:
+              productUnits[selectedProduct!] ??
+              _defaultUnitFromCategory(productCategories[selectedProduct!]!),
           quantity: quantity,
         ),
       );
@@ -179,6 +184,7 @@ class TransactionController extends ChangeNotifier {
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               totalPrice: item.totalPrice,
+              unit: item.unit,
               date: date,
             ),
           );

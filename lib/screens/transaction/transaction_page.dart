@@ -108,7 +108,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
     final newStockController = TextEditingController();
     final newMinStockController = TextEditingController();
     const unitOptionsByType = {
-      'Bahan': ['kg'],
+      'Bahan': ['kg', 'gr', 'L', 'ml'],
       'Barang': ['pcs'],
     };
     String selectedProductType = 'Bahan';
@@ -593,7 +593,10 @@ class _TransactionScreenState extends State<TransactionScreen> {
                             controller: _controller.quantityController,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
-                              hintText: 'Masukkan jumlah unit',
+                              hintText:
+                                  _controller.selectedProduct == null
+                                      ? 'Masukkan jumlah'
+                                      : 'Masukkan jumlah ${_controller.productUnits[_controller.selectedProduct] ?? ''}',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -715,7 +718,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  'Rp ${item.unitPrice} / unit',
+                                                  'Rp ${item.unitPrice} / ${item.unit}',
                                                   style: AppTextStyles
                                                       .labelSmall
                                                       .copyWith(
@@ -1023,7 +1026,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      '${tx.quantity} unit × Rp ${tx.unitPrice}',
+                                      '${tx.quantity} ${tx.unit} x Rp ${tx.unitPrice}',
                                       style: AppTextStyles.labelMedium.copyWith(
                                         color: AppColors.textSecondary,
                                       ),

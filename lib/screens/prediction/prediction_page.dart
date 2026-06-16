@@ -446,7 +446,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           const Text(
-                                            'Jumlah Produksi',
+                                            'Jumlah Produksi Manual (opsional)',
                                             style: TextStyle(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600,
@@ -491,6 +491,14 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                   ),
                                             ),
                                           ),
+                                          const SizedBox(height: 6),
+                                          const Text(
+                                            'Kosongkan untuk memakai hasil prediksi Random Forest.',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF9CA3AF),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                       const SizedBox(height: 20),
@@ -501,18 +509,51 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                               onPressed:
                                                   _controller.canCalculate
                                                       ? () async {
-                                                        await _controller
-                                                            .refreshStock();
-                                                        _controller.calculate();
+                                                        final error =
+                                                            await _controller
+                                                                .calculate();
+                                                        _productionController
+                                                            .text = _controller
+                                                                .productionQuantity
+                                                                .toString();
+                                                        if (!context.mounted ||
+                                                            error == null) {
+                                                          return;
+                                                        }
+
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              error,
+                                                            ),
+                                                          ),
+                                                        );
                                                       }
                                                       : null,
-                                              icon: const Icon(
-                                                Icons.calculate,
-                                                size: 18,
-                                              ),
-                                              label: const Text(
-                                                'Hitung Kebutuhan',
-                                                style: TextStyle(
+                                              icon:
+                                                  _controller.isPredicting
+                                                      ? const SizedBox(
+                                                        width: 18,
+                                                        height: 18,
+                                                        child: CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          valueColor:
+                                                              AlwaysStoppedAnimation<
+                                                                Color
+                                                              >(Colors.white),
+                                                        ),
+                                                      )
+                                                      : const Icon(
+                                                        Icons.auto_graph,
+                                                        size: 18,
+                                                      ),
+                                              label: Text(
+                                                _controller.isPredicting
+                                                    ? 'Memprediksi...'
+                                                    : 'Prediksi Random Forest',
+                                                style: const TextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w600,
                                                 ),
@@ -569,6 +610,124 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                 ),
                                 const SizedBox(height: 24),
                                 if (_controller.isCalculated) ...[
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFFA89080,
+                                      ).withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: const Color(
+                                          0xFFA89080,
+                                        ).withOpacity(0.25),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 40,
+                                              height: 40,
+                                              decoration: BoxDecoration(
+                                                color: const Color(
+                                                  0xFFA89080,
+                                                ).withOpacity(0.18),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: const Icon(
+                                                Icons.auto_graph,
+                                                color: Color(0xFFA89080),
+                                                size: 22,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'Hasil Prediksi Random Forest',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFF1F2937),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    'Bahan acuan: ${_controller.cleanIngredientName(_controller.predictionModelProduct ?? '-')}',
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      color: Color(0xFF6B7280),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 14),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _PredictionMetric(
+                                                label: 'Permintaan',
+                                                value:
+                                                    '${_controller.predictedDemand ?? 0}',
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _PredictionMetric(
+                                                label: 'Produksi',
+                                                value:
+                                                    '${_controller.productionQuantity} pcs',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _PredictionMetric(
+                                                label: 'R2',
+                                                value:
+                                                    _controller.predictionR2 ==
+                                                            null
+                                                        ? '-'
+                                                        : _controller
+                                                            .predictionR2!
+                                                            .toStringAsFixed(4),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _PredictionMetric(
+                                                label: 'MAE',
+                                                value:
+                                                    _controller.predictionMae ==
+                                                            null
+                                                        ? '-'
+                                                        : _controller
+                                                            .predictionMae!
+                                                            .toStringAsFixed(2),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
                                   Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
@@ -1290,6 +1449,45 @@ class _PredictionScreenState extends State<PredictionScreen> {
     _productionController.dispose();
     _controller.dispose();
     super.dispose();
+  }
+}
+
+class _PredictionMetric extends StatelessWidget {
+  const _PredictionMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

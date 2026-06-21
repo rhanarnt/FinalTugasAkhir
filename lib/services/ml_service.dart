@@ -4,8 +4,8 @@ import 'dart:convert';
 
 class MLService {
   // API URL Railway Flask backend.
-  static const String baseUrl = 'http://127.0.0.1:5000';
-  //https://web-production-c3c06.up.railway.app
+  static const String baseUrl = 'https://web-production-c3c06.up.railway.app';
+  //http://127.0.0.1:5000
   static const int timeoutSeconds = 30;
 
   static dynamic _tryDecodeJsonBody(String body) {

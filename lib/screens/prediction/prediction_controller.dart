@@ -386,15 +386,17 @@ class PredictionController extends ChangeNotifier {
         .replaceAll(RegExp(r'\.$'), '');
   }
 
+  String formatQuantityWithUnit(double amount, String unit) {
+    final displayUnit = _displayUnitLabel(unit);
+    return '${formatQuantity(amount)} $displayUnit';
+  }
+
   String formatStockQuantity(String ingredient, double value) {
-    final unit = getStockUnit(ingredient);
-    if (unit == 'kg' && value > 0 && value < 1) {
-      return '${formatQuantity(value * 1000)} gr';
-    }
-    if (unit == 'l' && value > 0 && value < 1) {
-      return '${formatQuantity(value * 1000)} ml';
-    }
-    return '${formatQuantity(value)} $unit';
+    return formatQuantityWithUnit(value, getStockUnit(ingredient));
+  }
+
+  String formatRequiredQuantity(String ingredient, double value) {
+    return formatQuantityWithUnit(value, getIngredientUnit(ingredient));
   }
 
   String _normalizeUnit(String unit) {
@@ -409,6 +411,16 @@ class PredictionController extends ChangeNotifier {
       return 'butir';
     }
     return normalized;
+  }
+
+  String _displayUnitLabel(String unit) {
+    final normalized = _normalizeUnit(unit);
+    if (normalized == 'gr') return 'kg';
+    if (normalized == 'ml') return 'L';
+    if (normalized == 'l') return 'L';
+    if (normalized == 'kg') return 'kg';
+    if (normalized == 'butir') return 'butir';
+    return unit.trim().isEmpty ? 'unit' : unit.trim();
   }
 
   double _toDouble(dynamic value) {

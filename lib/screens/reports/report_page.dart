@@ -195,6 +195,20 @@ class _ReportScreenState extends State<ReportScreen> {
                   const SizedBox(height: 12),
                   _buildPredictionList(_controller.predictionItems),
                   const SizedBox(height: 24),
+                  _buildSectionTitle(
+                    'Prediksi Kebutuhan Bahan Kedepan',
+                    icon: Icons.event_available_rounded,
+                    subtitle:
+                        'Prediksi kebutuhan bahan untuk beberapa hari ke depan.',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildForecastControls(),
+                  const SizedBox(height: 12),
+                  _buildForecastList(
+                    _controller.forecastItems,
+                    isLoading: _controller.isForecastLoading,
+                  ),
+                  const SizedBox(height: 24),
                   _buildSectionTitle('Grafik Penggunaan Bahan'),
                   const SizedBox(height: 12),
                   _buildCharts(usageBars, usagePie, demandTrend),
@@ -519,6 +533,174 @@ class _ReportScreenState extends State<ReportScreen> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildForecastControls() {
+    const dayOptions = [3, 7, 14, 30];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.bgWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey200),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.calendar_month_rounded,
+            size: 20,
+            color: AppColors.primaryBrown,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Jumlah hari ke depan',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: _controller.forecastDays,
+              borderRadius: BorderRadius.circular(12),
+              items:
+                  dayOptions.map((day) {
+                    return DropdownMenuItem<int>(
+                      value: day,
+                      child: Text('$day hari'),
+                    );
+                  }).toList(),
+              onChanged:
+                  _controller.isLoading
+                      ? null
+                      : (value) {
+                        if (value == null) return;
+                        _controller.setForecastDays(value);
+                      },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildForecastList(
+    List<Map<String, dynamic>> items, {
+    required bool isLoading,
+  }) {
+    if (isLoading) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        decoration: BoxDecoration(
+          color: AppColors.bgWhite,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.grey200),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Memuat prediksi kedepan...',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (items.isEmpty) {
+      return _buildReportEmptyState(
+        icon: Icons.event_available_rounded,
+        message: 'Belum ada data prediksi kebutuhan bahan kedepan.',
+      );
+    }
+
+    return Column(
+      children:
+          items.take(8).map((item) {
+            final ingredients =
+                (item['ingredients'] as List?)?.cast<Map<String, dynamic>>() ??
+                <Map<String, dynamic>>[];
+            final recipeTargets =
+                (item['recipe_targets'] as List?)?.cast<Map<String, dynamic>>() ??
+                <Map<String, dynamic>>[];
+            final date = item['date'] as DateTime;
+            final ingredientCount = StockStatusUtils.parseStock(
+              item['ingredient_count'],
+            );
+            final ingredientText = ingredients
+                .take(3)
+                .map((entry) {
+                  final quantity = StockStatusUtils.parseStock(
+                    entry['quantity'],
+                  );
+                  return '${entry['name']}: ${_formatQuantity(quantity)} ${entry['unit'] ?? 'kg'}';
+                })
+                .join('  |  ');
+            final recipeText = recipeTargets
+                .take(2)
+                .map((entry) {
+                  final production = StockStatusUtils.parseStock(
+                    entry['production'],
+                  );
+                  return '${entry['recipe_name']}: ${_formatQuantity(production)}';
+                })
+                .join('  |  ');
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _buildReportItemCard(
+                icon: Icons.event_available_rounded,
+                iconColor: AppColors.statusSuccess,
+                title: _dateFormat.format(date),
+                subtitle: 'Total kebutuhan ${_controller.forecastDays} hari',
+                trailing: Text(
+                  '${_formatQuantity(ingredientCount)} bahan',
+                  style: AppTextStyles.labelLarge.copyWith(
+                    color: AppColors.statusSuccess,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                footer: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      recipeText.isEmpty ? '-' : recipeText,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      ingredientText.isEmpty ? '-' : ingredientText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
     );
   }
 
@@ -1417,7 +1599,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
     if (_controller.stockItems.isEmpty &&
         _controller.stockHistory.isEmpty &&
-        _controller.predictionItems.isEmpty) {
+        _controller.predictionItems.isEmpty &&
+        _controller.forecastItems.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Data laporan masih kosong.')),
@@ -1532,9 +1715,13 @@ class _ReportScreenState extends State<ReportScreen> {
         _controller.predictionItems.where((entry) {
           return _isDateInRange(entry['date'] as DateTime, startDate, endDate);
         }).toList();
+    final forecastItems = _controller.forecastItems;
+    final forecastDays = _controller.forecastDays;
     final stockItems = _sortedStockItems(_controller.stockItems);
     final stockSummary = _summarizeStockHistory(stockHistory);
     final predictionSummary = _summarizePredictions(predictionItems);
+    final forecastSummary = _summarizeForecasts(forecastItems);
+    final forecastRows = _flattenForecastRows(forecastItems);
 
     final document = pw.Document();
     document.addPage(
@@ -1574,6 +1761,7 @@ class _ReportScreenState extends State<ReportScreen> {
               ['Total Bahan', _controller.totalBahan.toString()],
               ['Stok Kritis', _controller.totalKritis.toString()],
               ['Total Prediksi Periode', predictionItems.length.toString()],
+              ['Total Forecast Bahan', forecastRows.length.toString()],
               [
                 'Total Transaksi Stok Masuk Periode',
                 stockHistory.length.toString(),
@@ -1667,6 +1855,39 @@ class _ReportScreenState extends State<ReportScreen> {
                   ];
                 }),
             ]),
+            _pdfSectionTitle('Rekap Prediksi Kebutuhan Bahan Kedepan'),
+            _pdfTable([
+              ['No', 'Nama Bahan', 'Total $forecastDays Hari', 'Unit'],
+              if (forecastSummary.isEmpty)
+                ['-', 'Tidak ada data forecast', '-', '-']
+              else
+                ...forecastSummary.asMap().entries.map((entry) {
+                  final item = entry.value;
+                  return [
+                    '${entry.key + 1}',
+                    item['name']?.toString() ?? '-',
+                    _formatQuantity(item['quantity']),
+                    item['unit']?.toString() ?? 'kg',
+                  ];
+                }),
+            ]),
+            _pdfSectionTitle('Detail Prediksi Kebutuhan Bahan Kedepan'),
+            _pdfTable([
+              ['No', 'Tanggal', 'Nama Bahan', 'Kebutuhan', 'Unit'],
+              if (forecastRows.isEmpty)
+                ['-', 'Tidak ada data forecast', '-', '-', '-']
+              else
+                ...forecastRows.asMap().entries.map((entry) {
+                  final item = entry.value;
+                  return [
+                    '${entry.key + 1}',
+                    _dateFormat.format(item['date'] as DateTime),
+                    item['name']?.toString() ?? '-',
+                    _formatQuantity(item['quantity']),
+                    item['unit']?.toString() ?? 'kg',
+                  ];
+                }),
+            ]),
           ];
         },
       ),
@@ -1711,6 +1932,10 @@ class _ReportScreenState extends State<ReportScreen> {
         _controller.predictionItems.where((entry) {
           return _isDateInRange(entry['date'] as DateTime, startDate, endDate);
         }).toList();
+    final forecastItems = _controller.forecastItems;
+    final forecastDays = _controller.forecastDays;
+    final forecastSummary = _summarizeForecasts(forecastItems);
+    final forecastRows = _flattenForecastRows(forecastItems);
 
     final buffer =
         StringBuffer()
@@ -1734,6 +1959,7 @@ class _ReportScreenState extends State<ReportScreen> {
       ..writeln('Total Bahan,${_controller.totalBahan}')
       ..writeln('Stok Kritis,${_controller.totalKritis}')
       ..writeln('Total Prediksi Periode,${predictionItems.length}')
+      ..writeln('Total Forecast Bahan,${forecastRows.length}')
       ..writeln('Total Transaksi Stok Masuk Periode,${stockHistory.length}')
       ..writeln('');
 
@@ -1817,6 +2043,37 @@ class _ReportScreenState extends State<ReportScreen> {
         '${index + 1},$date,${_escapeCsv(item['product'])},'
         '${_formatQuantity(item['prediction'])},'
         '${_escapeCsv(item['needs'])}',
+      );
+    }
+    buffer.writeln('');
+
+    _writeSection(buffer, 'Rekap Prediksi Kebutuhan Bahan Kedepan');
+    buffer.writeln('No,Nama Bahan,Total $forecastDays Hari,Unit');
+    if (forecastSummary.isEmpty) {
+      buffer.writeln('-,Tidak ada data forecast,-,-');
+    }
+    for (var index = 0; index < forecastSummary.length; index++) {
+      final item = forecastSummary[index];
+      buffer.writeln(
+        '${index + 1},${_escapeCsv(item['name'])},'
+        '${_formatQuantity(item['quantity'])},'
+        '${_escapeCsv(item['unit'])}',
+      );
+    }
+    buffer.writeln('');
+
+    _writeSection(buffer, 'Detail Prediksi Kebutuhan Bahan Kedepan');
+    buffer.writeln('No,Tanggal,Nama Bahan,Kebutuhan,Unit');
+    if (forecastRows.isEmpty) {
+      buffer.writeln('-,Tidak ada data forecast,-,-,-');
+    }
+    for (var index = 0; index < forecastRows.length; index++) {
+      final item = forecastRows[index];
+      buffer.writeln(
+        '${index + 1},${_dateFormat.format(item['date'] as DateTime)},'
+        '${_escapeCsv(item['name'])},'
+        '${_formatQuantity(item['quantity'])},'
+        '${_escapeCsv(item['unit'])}',
       );
     }
     buffer.writeln('');
@@ -1933,6 +2190,78 @@ class _ReportScreenState extends State<ReportScreen> {
     return summary.values.toList()..sort(
       (a, b) => a['product'].toString().compareTo(b['product'].toString()),
     );
+  }
+
+  List<Map<String, dynamic>> _summarizeForecasts(
+    List<Map<String, dynamic>> items,
+  ) {
+    final summary = <String, Map<String, dynamic>>{};
+
+    for (final item in items) {
+      final ingredients =
+          (item['ingredients'] as List?)?.cast<Map<String, dynamic>>() ??
+          <Map<String, dynamic>>[];
+
+      for (final ingredient in ingredients) {
+        final name = ingredient['name']?.toString() ?? '-';
+        final unit = ingredient['unit']?.toString() ?? 'kg';
+        final key = '$name|$unit';
+        final quantity = StockStatusUtils.parseStock(ingredient['quantity']);
+
+        final current = summary[key];
+        if (current == null) {
+          summary[key] = {
+            'name': name,
+            'unit': unit,
+            'quantity': quantity,
+          };
+        } else {
+          current['quantity'] = (current['quantity'] as double) + quantity;
+        }
+      }
+    }
+
+    final values = summary.values.toList();
+    values.sort((a, b) {
+      final nameComparison = a['name'].toString().compareTo(b['name'].toString());
+      if (nameComparison != 0) return nameComparison;
+      return a['unit'].toString().compareTo(b['unit'].toString());
+    });
+    return values;
+  }
+
+  List<Map<String, dynamic>> _flattenForecastRows(
+    List<Map<String, dynamic>> items,
+  ) {
+    final rows = <Map<String, dynamic>>[];
+
+    for (final item in items) {
+      final date = item['date'] as DateTime;
+      final ingredients =
+          (item['ingredients'] as List?)?.cast<Map<String, dynamic>>() ??
+          <Map<String, dynamic>>[];
+
+      for (final ingredient in ingredients) {
+        rows.add({
+          'date': date,
+          'name': ingredient['name']?.toString() ?? '-',
+          'quantity': StockStatusUtils.parseStock(ingredient['quantity']),
+          'unit': ingredient['unit']?.toString() ?? 'kg',
+        });
+      }
+    }
+
+    rows.sort((a, b) {
+      final aDate = a['date'] as DateTime;
+      final bDate = b['date'] as DateTime;
+      final dateComparison = aDate.compareTo(bDate);
+      if (dateComparison != 0) return dateComparison;
+      final nameComparison = a['name'].toString().compareTo(b['name'].toString());
+      if (nameComparison != 0) return nameComparison;
+      return a['unit'].toString().compareTo(b['unit'].toString());
+    });
+
+    return rows;
   }
 
   String _escapeCsv(dynamic value) {

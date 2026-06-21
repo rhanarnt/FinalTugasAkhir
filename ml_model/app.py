@@ -148,6 +148,21 @@ def has_product_unit_column(connection) -> bool:
     cursor.close()
     return has_unit
 
+def ensure_product_unit_column(connection):
+    if not table_exists(connection, 'products') or has_product_unit_column(connection):
+        return
+
+    cursor = connection.cursor()
+    try:
+        cursor.execute(
+            "ALTER TABLE products ADD COLUMN unit VARCHAR(20) NOT NULL DEFAULT 'kg'"
+        )
+        connection.commit()
+    except Error as e:
+        logger.warning(f"Could not add unit column: {e}")
+    finally:
+        cursor.close()
+
 def ensure_product_stock_precision(connection):
     if not table_exists(connection, 'products'):
         return
@@ -193,41 +208,7 @@ def ensure_product_min_stock_column(connection):
         cursor.close()
 
 def backfill_default_min_stock(connection):
-    if not table_exists(connection, 'products'):
-        return
-
-    min_col = get_existing_column(connection, 'products', ['min_stock'])
-    if not min_col:
-        return
-
-    name_col = get_product_name_column(connection)
-    default_minimums = {
-        'Tepung Terigu 1kg': 10,
-        'Telur 1kg': 5,
-        'Gula Pasir 1kg': 8,
-        'Susu Bubuk': 4,
-        'Cokelat Bubuk 250gr': 3,
-        'Mentega 500gr': 5,
-        'Keju Parut 250gr': 2,
-        'Baking Powder': 2,
-    }
-
-    cursor = connection.cursor()
-    try:
-        for product_name, min_stock in default_minimums.items():
-            cursor.execute(
-                f"""
-                UPDATE products
-                SET {min_col} = %s
-                WHERE {name_col} = %s AND COALESCE({min_col}, 0) = 0
-                """,
-                (min_stock, product_name)
-            )
-        connection.commit()
-    except Error as e:
-        logger.warning(f"Could not backfill min_stock defaults: {e}")
-    finally:
-        cursor.close()
+    return
 
 def escape_table_name(table_name: str) -> str:
     return f"`{table_name}`"
@@ -454,6 +435,7 @@ def fetch_stock_report(connection):
     if table_name == 'products':
         ensure_product_stock_precision(connection)
         ensure_product_min_stock_column(connection)
+        ensure_product_unit_column(connection)
         backfill_default_min_stock(connection)
 
     name_col = get_existing_column(connection, table_name, ['nama_bahan', 'product_name', 'name'])
@@ -720,6 +702,151 @@ def convert_stock_quantity(quantity: float, from_unit: str, to_unit: str) -> flo
         return quantity / 1000
 
     return quantity
+
+
+PRODUCT_CODE_MAP = {
+    'baking powder 45gr': 0,
+    'cokelat bubuk 250gr': 1,
+    'gula pasir 1kg': 2,
+    'keju parut 250gr': 3,
+    'mentega 500gr': 4,
+    'susu bubuk 27gr': 5,
+    'telur 1kg': 6,
+    'tepung terigu 1kg': 7,
+}
+
+PRODUCT_CATEGORY_MAP = {
+    'baking powder': 'Bahan Tambahan',
+    'baking powder 45gr': 'Bahan Tambahan',
+    'cokelat bubuk 250gr': 'Cokelat',
+    'gula pasir 1kg': 'Gula',
+    'keju parut 250gr': 'Keju',
+    'mentega 500gr': 'Mentega',
+    'susu bubuk': 'Susu',
+    'susu bubuk 27gr': 'Susu',
+    'telur 1kg': 'Telur',
+    'tepung terigu 1kg': 'Tepung',
+}
+
+PRODUCT_PRICE_MAP = {
+    'baking powder': 8180,
+    'baking powder 45gr': 8180,
+    'cokelat bubuk 250gr': 21036,
+    'gula pasir 1kg': 14608,
+    'keju parut 250gr': 23373,
+    'mentega 500gr': 17529,
+    'susu bubuk': 17529,
+    'susu bubuk 27gr': 17529,
+    'telur 1kg': 26878,
+    'tepung terigu 1kg': 11687,
+}
+
+PRODUCT_UNIT_MAP = {
+    'baking powder 45gr': 'gr',
+    'cokelat bubuk 250gr': 'gr',
+    'gula pasir 1kg': 'kg',
+    'keju parut 250gr': 'gr',
+    'mentega 500gr': 'gr',
+    'susu bubuk 27gr': 'gr',
+    'susu bubuk': 'gr',
+    'telur 1kg': 'kg',
+    'tepung terigu 1kg': 'kg',
+}
+
+
+def normalize_product_for_model(product_name: str) -> str:
+    value = (product_name or '').lower()
+    if 'tepung' in value:
+        return 'Tepung Terigu 1kg'
+    if 'gula' in value:
+        return 'Gula Pasir 1kg'
+    if 'mentega' in value:
+        return 'Mentega 500gr'
+    if 'telur' in value:
+        return 'Telur 1kg'
+    if 'susu' in value:
+        return 'Susu Bubuk 27gr'
+    if 'cokelat' in value or 'coklat' in value:
+        return 'Cokelat Bubuk 250gr'
+    if 'keju' in value:
+        return 'Keju Parut 250gr'
+    if 'baking' in value or 'pengembang' in value:
+        return 'Baking Powder 45gr'
+    return product_name
+
+
+def dataset_product_key(product_name: str) -> str:
+    return ' '.join((product_name or '').lower().split())
+
+
+def dataset_product_unit(product_name: str, fallback: str | None = None) -> str:
+    return fallback or PRODUCT_UNIT_MAP.get(dataset_product_key(product_name), 'unit')
+
+
+def apply_dataset_product_fields(product: dict) -> dict:
+    name = product.get('name') or product.get('product_name') or ''
+    key = dataset_product_key(name)
+
+    product['unit'] = product.get('unit') or PRODUCT_UNIT_MAP.get(key, 'unit')
+    if key in PRODUCT_CATEGORY_MAP:
+        product['category'] = PRODUCT_CATEGORY_MAP[key]
+    if key in PRODUCT_PRICE_MAP and not product.get('price'):
+        product['price'] = PRODUCT_PRICE_MAP[key]
+
+    return product
+
+
+def encode_with_label_encoder(column_name: str, value: str, fallback: int = 0) -> int:
+    encoder = encoders.get(column_name)
+    if encoder is None:
+        return fallback
+
+    try:
+        return int(encoder.transform([value])[0])
+    except ValueError:
+        return fallback
+
+
+def normalize_prediction_payload(data: dict) -> dict:
+    """Accept full model features or simple UI payload and return model features."""
+    if all(feature in data for feature in feature_columns):
+        return data
+
+    normalized = dict(data)
+    prediction_date = data.get('prediction_date') or data.get('tanggal_prediksi')
+    if prediction_date:
+        date_value = datetime.fromisoformat(str(prediction_date).split('T')[0])
+    else:
+        date_value = datetime.now()
+
+    raw_product_name = data.get('product_name') or data.get('nama_produk') or ''
+    model_product_name = normalize_product_for_model(raw_product_name)
+    model_product_key = model_product_name.lower()
+    model_category = PRODUCT_CATEGORY_MAP.get(
+        model_product_key,
+        data.get('category') or data.get('kategori_produk') or 'Bahan Tambahan'
+    )
+    unit_price = int(float(
+        data.get('unit_price')
+        or data.get('harga_satuan_update')
+        or PRODUCT_PRICE_MAP.get(model_product_key, 1)
+    ))
+    planned_quantity = max(1, int(float(data.get('planned_quantity') or data.get('jumlah_rencana') or 1)))
+
+    normalized.update({
+        'tahun': date_value.year,
+        'bulan': date_value.month,
+        'hari': date_value.day,
+        'hari_dalam_minggu': date_value.weekday(),
+        'hari_minggu': date_value.weekday(),
+        'harga_satuan_update': unit_price,
+        'total_harga_update': int(float(data.get('total_harga_update') or unit_price * planned_quantity)),
+        'produk_encoded': PRODUCT_CODE_MAP.get(model_product_key, 0),
+        'nama_produk_encoded': encode_with_label_encoder('nama_produk', model_product_name),
+        'kategori_produk_encoded': encode_with_label_encoder('kategori_produk', model_category),
+    })
+
+    return normalized
 
 # ============================================================================
 # LOAD MODELS AT STARTUP
@@ -1165,6 +1292,8 @@ def prediksi():
     try:
         data = request.json
 
+        data = normalize_prediction_payload(data)
+
         # Validate required fields
         required_fields = feature_columns
         missing_fields = [f for f in required_fields if f not in data]
@@ -1177,7 +1306,7 @@ def prediksi():
             }), 400
 
         # Create feature array
-        X_pred = np.array([[data[f] for f in feature_columns]])
+        X_pred = pd.DataFrame([[data[f] for f in feature_columns]], columns=feature_columns)
 
         # Predict
         prediksi_raw = model.predict(X_pred)[0]
@@ -1243,7 +1372,7 @@ def batch_prediksi():
                     continue
 
                 # Create feature array
-                X_pred = np.array([[item[f] for f in feature_columns]])
+                X_pred = pd.DataFrame([[item[f] for f in feature_columns]], columns=feature_columns)
 
                 # Predict
                 prediksi_raw = model.predict(X_pred)[0]
@@ -1319,6 +1448,7 @@ def get_products():
         cursor = connection.cursor(dictionary=True)
         cursor.execute("SELECT * FROM products ORDER BY name")
         products = cursor.fetchall()
+        products = [apply_dataset_product_fields(product) for product in products]
         cursor.close()
         connection.close()
 
@@ -1349,6 +1479,8 @@ def get_product(product_id):
 
         if not product:
             return jsonify({'status': 'error', 'message': 'Product not found'}), 404
+
+        product = apply_dataset_product_fields(product)
 
         return jsonify({
             'status': 'success',
@@ -1393,6 +1525,7 @@ def create_product():
 
         ensure_product_stock_precision(connection)
         ensure_product_min_stock_column(connection)
+        ensure_product_unit_column(connection)
 
         cursor = connection.cursor()
 
@@ -1404,9 +1537,10 @@ def create_product():
         cursor.execute("SHOW COLUMNS FROM products LIKE 'min_stock'")
         has_min_stock_column = cursor.fetchone() is not None
 
-        unit_value = data.get('unit')
+        unit_value = dataset_product_unit(data['name'], data.get('unit'))
         product_type_value = data.get('product_type')
         min_stock_value = data.get('min_stock', 0)
+        category_value = PRODUCT_CATEGORY_MAP.get(dataset_product_key(data['name']), data['category'])
 
         # Check for duplicate product name
         cursor.execute("SELECT id FROM products WHERE name = %s", (data['name'],))
@@ -1419,7 +1553,7 @@ def create_product():
             }), 409
 
         columns = ['name', 'category', 'price', 'current_stock']
-        values = [data['name'], data['category'], data['price'], data['current_stock']]
+        values = [data['name'], category_value, data['price'], data['current_stock']]
         if has_unit_column:
             columns.append('unit')
             values.append(unit_value)
@@ -1450,6 +1584,100 @@ def create_product():
 
     except Exception as e:
         logger.error(f"Create product error: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/products/<int:product_id>', methods=['PUT', 'PATCH'])
+def update_product(product_id):
+    """Update product data from Flutter product edit form."""
+    try:
+        data = request.json or {}
+        allowed_fields = {
+            'name': 'name',
+            'category': 'category',
+            'price': 'price',
+            'current_stock': 'current_stock',
+            'stock': 'current_stock',
+            'min_stock': 'min_stock',
+            'unit': 'unit',
+        }
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
+
+        ensure_product_stock_precision(connection)
+        ensure_product_min_stock_column(connection)
+        ensure_product_unit_column(connection)
+
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT id FROM products WHERE id = %s", (product_id,))
+        if not cursor.fetchone():
+            cursor.close()
+            connection.close()
+            return jsonify({'status': 'error', 'message': 'Product not found'}), 404
+
+        if 'name' in data and str(data['name']).strip():
+            cursor.execute(
+                "SELECT id FROM products WHERE name = %s AND id <> %s",
+                (str(data['name']).strip(), product_id),
+            )
+            if cursor.fetchone():
+                cursor.close()
+                connection.close()
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Product "{data["name"]}" already exists'
+                }), 409
+
+        updates = []
+        values = []
+        for input_key, column_name in allowed_fields.items():
+            if input_key not in data:
+                continue
+
+            value = data[input_key]
+            if input_key == 'name':
+                value = str(value).strip()
+                if not value:
+                    continue
+            if input_key == 'category':
+                value = str(value).strip()
+            if input_key == 'unit':
+                value = str(value).strip()
+            if input_key == 'price':
+                value = int(value)
+            if input_key in ['current_stock', 'stock', 'min_stock']:
+                value = float(value)
+
+            updates.append(f"{column_name} = %s")
+            values.append(value)
+
+        if not updates:
+            cursor.close()
+            connection.close()
+            return jsonify({'status': 'error', 'message': 'Tidak ada data yang diubah'}), 400
+
+        values.append(product_id)
+        cursor.execute(
+            f"UPDATE products SET {', '.join(updates)} WHERE id = %s",
+            tuple(values),
+        )
+        connection.commit()
+
+        cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+        product = cursor.fetchone()
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Product updated successfully',
+            'product': apply_dataset_product_fields(product),
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Update product error: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
@@ -2184,6 +2412,233 @@ def laporan_prediksi():
     except Exception as e:
         logger.error(f"Laporan prediksi error: {str(e)}")
         return build_report_response(False, f'Gagal mengambil data: {str(e)}', [], 500)
+def normalize_prediction_date(value: str | None) -> datetime:
+    if not value:
+        return datetime.now()
+    try:
+        return datetime.fromisoformat(value.split('T')[0])
+    except Exception:
+        return datetime.now()
+
+
+def forecast_day_multiplier(target_date: datetime) -> float:
+    weekday = target_date.weekday()
+    if weekday == 4:  # Friday
+        return 1.1
+    if weekday == 5:  # Saturday
+        return 1.2
+    if weekday == 6:  # Sunday
+        return 1.15
+    return 1.0
+
+
+def load_recipe_production_averages(connection) -> dict[str, float]:
+    averages: dict[str, float] = {}
+    if not table_exists(connection, 'stock_usage_history'):
+        return averages
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT recipe_name, AVG(COALESCE(production_quantity, 0)) AS avg_production
+            FROM stock_usage_history
+            WHERE COALESCE(recipe_name, '') <> ''
+              AND COALESCE(production_quantity, 0) > 0
+            GROUP BY recipe_name
+            """
+        )
+        rows = cursor.fetchall()
+        for row in rows:
+            recipe_name = (row.get('recipe_name') or '').strip()
+            if not recipe_name:
+                continue
+            averages[recipe_name] = float(row.get('avg_production') or 1.0)
+    except Exception:
+        pass
+    finally:
+        cursor.close()
+    return averages
+
+
+def load_recipes_with_ingredients(connection, recipe_filter: str = '', limit: int | None = None) -> list[dict]:
+    if not table_exists(connection, 'recipes') or not table_exists(connection, 'recipe_ingredients'):
+        return []
+    cursor = connection.cursor(dictionary=True)
+    try:
+        query = """
+            SELECT r.id AS recipe_id,
+                   r.recipe_name,
+                   r.description,
+                   ri.product_name,
+                   ri.quantity_needed,
+                   ri.unit
+            FROM recipes r
+            LEFT JOIN recipe_ingredients ri ON ri.recipe_id = r.id
+        """
+        params = []
+        if recipe_filter:
+            query += " WHERE r.recipe_name LIKE %s"
+            params.append(f"%{recipe_filter}%")
+        query += " ORDER BY r.recipe_name, ri.product_name"
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, tuple(params))
+        return cursor.fetchall()
+    except Exception:
+        return []
+    finally:
+        cursor.close()
+
+
+def build_forecast_items(connection, start_date, days, recipe_filter='', limit=8):
+    """Predict ingredient needs for the next N days based on recipes and the ML model."""
+    averages = load_recipe_production_averages(connection)
+    recipes = load_recipes_with_ingredients(connection, recipe_filter=recipe_filter, limit=limit)
+    if not recipes:
+        return []
+
+    # Group ingredients by recipe
+    recipe_dict = {}
+    for r in recipes:
+        name = r['recipe_name']
+        if name not in recipe_dict:
+            recipe_dict[name] = {
+                'recipe_name': name,
+                'ingredients': []
+            }
+        if r['product_name']:
+            recipe_dict[name]['ingredients'].append({
+                'product_name': r['product_name'],
+                'quantity_needed': r['quantity_needed'],
+                'unit': r['unit']
+            })
+
+    report_items = []
+    for day_offset in range(days):
+        target_date = start_date + timedelta(days=day_offset)
+        multiplier = forecast_day_multiplier(target_date)
+
+        day_ingredients = {}
+        recipe_targets = []
+
+        for recipe_name, recipe_data in recipe_dict.items():
+            avg_production = averages.get(recipe_name, 1.0)
+            target_prod = max(1.0, avg_production * multiplier)
+            recipe_targets.append({
+                'recipe_name': recipe_name,
+                'target_produksi': round(target_prod, 2)
+            })
+
+            for ing in recipe_data['ingredients']:
+                ing_name = ing['product_name']
+                ing_unit = ing['unit'] or 'kg'
+
+                # Build model prediction features using standard normalization
+                features = normalize_prediction_payload({
+                    'prediction_date': target_date.date().isoformat(),
+                    'product_name': ing_name,
+                    'planned_quantity': int(target_prod)
+                })
+
+                # Predict using the loaded model directly
+                X_pred = pd.DataFrame([[features[f] for f in feature_columns]], columns=feature_columns)
+                pred_raw = float(model.predict(X_pred)[0])
+
+                # Determine model package size mapping (in grams/kg)
+                package_size = 1.0
+                pkg_unit = 'kg'
+                ing_lower = ing_name.lower()
+                if 'baking' in ing_lower:
+                    package_size = 45.0
+                    pkg_unit = 'gr'
+                elif 'cokelat' in ing_lower or 'coklat' in ing_lower:
+                    package_size = 250.0
+                    pkg_unit = 'gr'
+                elif 'keju' in ing_lower:
+                    package_size = 250.0
+                    pkg_unit = 'gr'
+                elif 'mentega' in ing_lower:
+                    package_size = 500.0
+                    pkg_unit = 'gr'
+                elif 'susu' in ing_lower:
+                    package_size = 27.0
+                    pkg_unit = 'gr'
+
+                # Convert predicted package float quantity into the ingredient's recipe unit
+                pred_qty = convert_stock_quantity(pred_raw * package_size, pkg_unit, ing_unit)
+
+                if ing_name not in day_ingredients:
+                    day_ingredients[ing_name] = {
+                        'nama_bahan': ing_name,
+                        'jumlah': 0.0,
+                        'unit': ing_unit
+                    }
+                day_ingredients[ing_name]['jumlah'] += pred_qty
+
+        ingredients_list = []
+        total_qty = 0.0
+        for ing_name, ing_info in day_ingredients.items():
+            ing_info['jumlah'] = round(ing_info['jumlah'], 2)
+            ingredients_list.append(ing_info)
+            total_qty += ing_info['jumlah']
+
+        report_items.append({
+            'tanggal_prediksi': target_date.date().isoformat(),
+            'multiplier': round(multiplier, 2),
+            'bahan': ingredients_list,
+            'target_produksi': recipe_targets,
+            'jumlah_bahan': float(len(ingredients_list)),
+            'total_bahan': round(total_qty, 2)
+        })
+
+    return report_items
+
+
+@app.route('/laporan/prediksi-forecast', methods=['GET'])
+def laporan_prediksi_forecast():
+    """Laporan prediksi kebutuhan bahan beberapa hari ke depan dalam format JSON."""
+    try:
+        days = max(1, min(request.args.get('days', default=7, type=int), 90))
+        limit = max(1, min(request.args.get('limit', default=8, type=int), 50))
+        recipe_filter = request.args.get('product_name', default='', type=str).strip()
+        start_date = normalize_prediction_date(request.args.get('start_date'))
+
+        connection = get_db_connection()
+        if not connection:
+            return build_report_response(False, 'Database connection failed', [], 500)
+
+        try:
+            report_items = build_forecast_items(
+                connection,
+                start_date,
+                days,
+                recipe_filter=recipe_filter,
+                limit=limit,
+            )
+        finally:
+            connection.close()
+
+        return jsonify({
+            'status': True,
+            'message': 'Data prediksi kebutuhan bahan berhasil diambil',
+            'parameter': {
+                'start_date': start_date.date().isoformat(),
+                'days': days,
+                'limit': limit,
+                'recipe_name': recipe_filter or None,
+            },
+            'model_accuracy': {
+                'r2_score': round(metadata['r2_score'], 4),
+                'mae': round(metadata['mae'], 4),
+                'rmse': round(metadata['rmse'], 4),
+            },
+            'data': report_items,
+        }), 200
+    except Exception as e:
+        logger.error(f"Laporan prediksi forecast error: {str(e)}")
+        return build_report_response(False, f'Gagal membuat forecast: {str(e)}', [], 500)
 
 
 # ============================================================================

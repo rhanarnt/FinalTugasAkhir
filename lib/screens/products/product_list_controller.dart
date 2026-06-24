@@ -156,18 +156,50 @@ class ProductListController extends ChangeNotifier {
   }
 
   String formatQuantityWithUnit(double amount, String rawUnit) {
-    final displayUnit = _displayUnitLabel(rawUnit);
-    return '${formatStock(amount)} $displayUnit';
+    final display = _displayQuantity(amount, rawUnit);
+    return '${formatStock(display['value'] as double)} ${display['unit'] as String}';
   }
 
   String _displayUnitLabel(String unit) {
     final normalized = _normalizeUnit(unit);
     if (normalized == 'pcs' || normalized == 'butir') return 'pcs';
-    if (normalized == 'gr') return 'kg';
-    if (normalized == 'ml') return 'L';
+    if (normalized == 'gr') return 'gr';
+    if (normalized == 'ml') return 'ml';
     if (normalized == 'l') return 'L';
     if (normalized == 'kg') return 'kg';
     return unit.trim().isEmpty ? 'kg' : unit.trim();
+  }
+
+  Map<String, dynamic> _displayQuantity(double amount, String unit) {
+    final normalized = _normalizeUnit(unit);
+
+    if (normalized == 'gr') {
+      if (amount >= 1000) {
+        return {'value': amount / 1000, 'unit': 'kg'};
+      }
+      return {'value': amount, 'unit': 'gr'};
+    }
+
+    if (normalized == 'ml') {
+      if (amount >= 1000) {
+        return {'value': amount / 1000, 'unit': 'L'};
+      }
+      return {'value': amount, 'unit': 'ml'};
+    }
+
+    if (normalized == 'l') {
+      return {'value': amount, 'unit': 'L'};
+    }
+
+    if (normalized == 'pcs' || normalized == 'butir') {
+      return {'value': amount, 'unit': 'pcs'};
+    }
+
+    if (normalized == 'kg') {
+      return {'value': amount, 'unit': 'kg'};
+    }
+
+    return {'value': amount, 'unit': _displayUnitLabel(unit)};
   }
 
   String _normalizeUnit(String unit) {

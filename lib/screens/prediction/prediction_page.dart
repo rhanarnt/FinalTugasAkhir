@@ -886,12 +886,6 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                   .isIngredientSelected(
                                                     ingredient,
                                                   );
-                                              final unit =
-                                                  (details['unit']
-                                                      as String?) ??
-                                                  _controller.getIngredientUnit(
-                                                    ingredient,
-                                                  );
                                               final quantityPerUnit =
                                                   (details['quantity'] as num)
                                                       .toDouble();
@@ -901,22 +895,18 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                           _controller
                                                               .productionQuantity
                                                       : 0.0;
-                                              final stockKg = _controller
-                                                  .getCurrentStock(ingredient);
-                                              final requiredGram =
-                                                  isSelected
-                                                      ? _controller.toGram(
-                                                        amount: neededAmount,
-                                                        unit: unit,
-                                                      )
-                                                      : 0.0;
+                                              final currentStockValue =
+                                                  _controller
+                                                      .getCurrentStock(
+                                                        ingredient,
+                                                      );
                                               final requiredInStockUnit =
                                                   _controller
                                                       .getRequiredInStockUnit(
                                                         ingredient,
                                                       );
                                               final isSufficient =
-                                                  stockKg >=
+                                                  currentStockValue >=
                                                   requiredInStockUnit;
                                               final statusColor =
                                                   isSelected
@@ -1012,7 +1002,12 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                                               ),
                                                                             ),
                                                                             Text(
-                                                                              '${_controller.formatQuantity(requiredGram)} gr',
+                                                                              isSelected
+                                                                                  ? _controller.formatRequiredQuantity(
+                                                                                    ingredient,
+                                                                                    neededAmount,
+                                                                                  )
+                                                                                  : '-',
                                                                               style: const TextStyle(
                                                                                 fontSize:
                                                                                     12,
@@ -1044,7 +1039,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                                             Text(
                                                                               _controller.formatStockQuantity(
                                                                                 ingredient,
-                                                                                stockKg,
+                                                                                currentStockValue,
                                                                               ),
                                                                               style: const TextStyle(
                                                                                 fontSize:

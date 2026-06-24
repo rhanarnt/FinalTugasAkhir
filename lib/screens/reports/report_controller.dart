@@ -7,11 +7,13 @@ import 'package:flutter/material.dart';
 
 class ReportController extends ChangeNotifier {
   bool isLoading = true;
+  bool isForecastLoading = false;
   String? errorMessage;
 
   final List<Map<String, dynamic>> stockItems = [];
   final List<Map<String, dynamic>> stockHistory = [];
   final List<Map<String, dynamic>> predictionItems = [];
+  final List<Map<String, dynamic>> forecastItems = [];
   final List<Map<String, dynamic>> criticalItems = [];
   final List<Map<String, dynamic>> usageSummary = [];
   final List<double> demandTrend = [];
@@ -21,6 +23,8 @@ class ReportController extends ChangeNotifier {
   int totalBahan = 0;
   int totalPrediksi = 0;
   int totalKritis = 0;
+
+  int forecastDays = 7;
 
   int _productCount = 0;
 
@@ -97,10 +101,44 @@ class ReportController extends ChangeNotifier {
 
       _rebuildSummary();
       _rebuildDemandTrend();
+      await loadForecast(showLoading: false);
     } catch (e) {
       errorMessage = 'Gagal memuat laporan: $e';
     } finally {
       isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> setForecastDays(int days) async {
+    if (forecastDays == days) return;
+
+    forecastDays = days;
+    await loadForecast();
+  }
+
+  Future<void> loadForecast({bool showLoading = true}) async {
+    if (showLoading) {
+      isForecastLoading = true;
+      notifyListeners();
+    }
+
+    try {
+      final forecastResponse = await MLService.getReportPredictionForecast(
+        days: forecastDays,
+        months: 1,
+        limit: 8,
+      );
+
+      if (forecastResponse['status'] != true) {
+        forecastItems.clear();
+      } else {
+        _applyForecasts(forecastResponse['data']);
+      }
+    } catch (_) {
+      forecastItems.clear();
+    } finally {
+      isForecastLoading = false;
       notifyListeners();
     }
   }
@@ -165,6 +203,50 @@ class ReportController extends ChangeNotifier {
         'prediction': _toDouble(item['hasil_prediksi']),
         'needs': needsText,
         'date': _parseDate(item['tanggal_prediksi']),
+      });
+    }
+  }
+
+  void _applyForecasts(dynamic data) {
+    forecastItems.clear();
+    if (data is! List) return;
+
+    for (final item in data) {
+      if (item is! Map) continue;
+
+      final ingredientsData = item['bahan'];
+      final recipeTargetsData = item['target_produksi'];
+      final ingredients = <Map<String, dynamic>>[];
+      final recipeTargets = <Map<String, dynamic>>[];
+
+      if (ingredientsData is List) {
+        for (final ingredient in ingredientsData) {
+          if (ingredient is! Map) continue;
+          ingredients.add({
+            'name': ingredient['nama_bahan']?.toString() ?? '-',
+            'quantity': _toDouble(ingredient['jumlah']),
+            'unit': ingredient['unit']?.toString() ?? 'kg',
+          });
+        }
+      }
+
+      if (recipeTargetsData is List) {
+        for (final target in recipeTargetsData) {
+          if (target is! Map) continue;
+          recipeTargets.add({
+            'recipe_name': target['recipe_name']?.toString() ?? '-',
+            'production': _toDouble(target['target_produksi']),
+          });
+        }
+      }
+
+      forecastItems.add({
+        'date': _parseDate(item['tanggal_prediksi']),
+        'multiplier': _toDouble(item['multiplier']),
+        'ingredients': ingredients,
+        'recipe_targets': recipeTargets,
+        'ingredient_count': _toDouble(item['jumlah_bahan']),
+        'total_bahan': _toDouble(item['total_bahan']),
       });
     }
   }

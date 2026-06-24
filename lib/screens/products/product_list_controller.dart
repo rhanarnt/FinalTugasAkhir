@@ -143,15 +143,77 @@ class ProductListController extends ChangeNotifier {
         .replaceAll(RegExp(r'\.$'), '');
   }
 
+  String formatStockDisplay(double value, String rawUnit) {
+    return formatQuantityWithUnit(value, rawUnit);
+  }
+
   String minimumStockUnit(Product product) {
-    final unit = product.unit.toLowerCase();
-    if (product.category.toLowerCase() == 'barang' || unit == 'pcs') {
+    return _displayUnitLabel(product.unit);
+  }
+
+  String displayUnit(Product product) {
+    return _displayUnitLabel(product.unit);
+  }
+
+  String formatQuantityWithUnit(double amount, String rawUnit) {
+    final display = _displayQuantity(amount, rawUnit);
+    return '${formatStock(display['value'] as double)} ${display['unit'] as String}';
+  }
+
+  String _displayUnitLabel(String unit) {
+    final normalized = _normalizeUnit(unit);
+    if (normalized == 'pcs' || normalized == 'butir') return 'pcs';
+    if (normalized == 'gr') return 'gr';
+    if (normalized == 'ml') return 'ml';
+    if (normalized == 'l') return 'L';
+    if (normalized == 'kg') return 'kg';
+    return unit.trim().isEmpty ? 'kg' : unit.trim();
+  }
+
+  Map<String, dynamic> _displayQuantity(double amount, String unit) {
+    final normalized = _normalizeUnit(unit);
+
+    if (normalized == 'gr') {
+      if (amount >= 1000) {
+        return {'value': amount / 1000, 'unit': 'kg'};
+      }
+      return {'value': amount, 'unit': 'gr'};
+    }
+
+    if (normalized == 'ml') {
+      if (amount >= 1000) {
+        return {'value': amount / 1000, 'unit': 'L'};
+      }
+      return {'value': amount, 'unit': 'ml'};
+    }
+
+    if (normalized == 'l') {
+      return {'value': amount, 'unit': 'L'};
+    }
+
+    if (normalized == 'pcs' || normalized == 'butir') {
+      return {'value': amount, 'unit': 'pcs'};
+    }
+
+    if (normalized == 'kg') {
+      return {'value': amount, 'unit': 'kg'};
+    }
+
+    return {'value': amount, 'unit': _displayUnitLabel(unit)};
+  }
+
+  String _normalizeUnit(String unit) {
+    final normalized = unit.trim().toLowerCase();
+    if (['g', 'gr', 'gram', 'grams'].contains(normalized)) return 'gr';
+    if (['kg', 'kilogram', 'kilograms'].contains(normalized)) return 'kg';
+    if (['ml', 'mili', 'mililiter', 'milliliter'].contains(normalized)) {
+      return 'ml';
+    }
+    if (['l', 'lt', 'ltr', 'liter', 'litre'].contains(normalized)) return 'l';
+    if (['butir', 'pcs', 'piece', 'pieces'].contains(normalized)) {
       return 'pcs';
     }
-    if (unit == 'ml' || unit == 'l') {
-      return 'L';
-    }
-    return 'kg';
+    return normalized;
   }
 
   Future<String?> updateProduct({

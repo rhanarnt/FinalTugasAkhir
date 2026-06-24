@@ -3,11 +3,32 @@ import 'dart:async';
 import 'dart:convert';
 
 class MLService {
-  // API URL local Flask backend.
-  static const String baseUrl = 'http://192.168.1.67:5000';
-  //https://web-production-c3c06.up.railway.app/api
-
+  // API URL Railway Flask backend.
+  static const String baseUrl = 'https://web-production-c3c06.up.railway.app';
+  //http://127.0.0.1:5000
   static const int timeoutSeconds = 30;
+
+  static dynamic _tryDecodeJsonBody(String body) {
+    final trimmed = body.trimLeft();
+    if (trimmed.isEmpty) return null;
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      return null;
+    }
+
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Map<String, dynamic>? _decodeJsonMap(String body) {
+    final decoded = _tryDecodeJsonBody(body);
+    if (decoded is Map) {
+      return Map<String, dynamic>.from(decoded);
+    }
+    return null;
+  }
 
   /// Login using account data from MySQL login table.
   static Future<Map<String, dynamic>> login({
@@ -27,7 +48,14 @@ class MLService {
           )
           .timeout(Duration(seconds: timeoutSeconds));
 
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final body = _decodeJsonMap(response.body);
+      if (body == null) {
+        return {
+          'status': 'error',
+          'message':
+              'Server mengembalikan respons bukan JSON. Cek baseUrl API.',
+        };
+      }
       if (response.statusCode == 200) {
         return body;
       }
@@ -107,7 +135,14 @@ class MLService {
           )
           .timeout(Duration(seconds: timeoutSeconds));
 
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final body = _decodeJsonMap(response.body);
+      if (body == null) {
+        return {
+          'status': 'error',
+          'message':
+              'Server mengembalikan respons bukan JSON. Cek baseUrl API.',
+        };
+      }
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return body;
       }
@@ -161,7 +196,8 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return _decodeJsonMap(response.body) ??
+            {'status': 'error', 'message': 'Respons metadata tidak valid'};
       } else {
         return {'status': 'error', 'message': 'Failed to get metadata'};
       }
@@ -196,7 +232,8 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return _decodeJsonMap(response.body) ??
+            {'status': 'error', 'message': 'Respons prediksi tidak valid'};
       }
 
       return {
@@ -244,7 +281,8 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return _decodeJsonMap(response.body) ??
+            {'status': 'error', 'message': 'Respons prediksi tidak valid'};
       } else {
         return {
           'status': 'error',
@@ -272,7 +310,11 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return _decodeJsonMap(response.body) ??
+            {
+              'status': 'error',
+              'message': 'Respons batch prediksi tidak valid',
+            };
       } else {
         return {
           'status': 'error',
@@ -292,7 +334,8 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return _decodeJsonMap(response.body) ??
+            {'status': 'error', 'message': 'Respons info tidak valid'};
       } else {
         return {'status': 'error', 'message': 'Failed to get info'};
       }
@@ -313,7 +356,12 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return _decodeJsonMap(response.body) ??
+            {
+              'status': false,
+              'message': 'Respons dashboard tidak valid',
+              'penggunaan_bahan': [],
+            };
       }
 
       return {
@@ -344,7 +392,7 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = _decodeJsonMap(response.body);
         return data is Map<String, dynamic> ? data : fallback;
       }
 
@@ -370,7 +418,12 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return _decodeJsonMap(response.body) ??
+            {
+              'status': false,
+              'message': 'Respons laporan tidak valid',
+              'data': [],
+            };
       }
 
       print('Report request failed [$path]: ${response.statusCode}');
@@ -398,6 +451,32 @@ class MLService {
   /// Laporan prediksi permintaan
   static Future<Map<String, dynamic>> getReportPredictions() async {
     return _getReport('/laporan/prediksi');
+  }
+
+  /// Laporan prediksi hari/tanggal dan bulan ke depan.
+  static Future<Map<String, dynamic>> getReportPredictionForecast({
+    int days = 7,
+    int months = 3,
+    int limit = 8,
+    DateTime? startDate,
+    String? productName,
+  }) async {
+    final queryParameters = <String, String>{
+      'days': days.toString(),
+      'months': months.toString(),
+      'limit': limit.toString(),
+      if (startDate != null)
+        'start_date': startDate.toIso8601String().split('T').first,
+      if (productName != null && productName.trim().isNotEmpty)
+        'product_name': productName.trim(),
+    };
+    final path =
+        Uri(
+          path: '/laporan/prediksi-forecast',
+          queryParameters: queryParameters,
+        ).toString();
+
+    return _getReport(path);
   }
 
   /// Laporan bahan kritis
@@ -436,8 +515,7 @@ class MLService {
       print('[consumeStock] Response status: ${response.statusCode}');
       print('[consumeStock] Response body: ${response.body}');
 
-      final parsedBody =
-          response.body.isNotEmpty ? jsonDecode(response.body) : null;
+      final parsedBody = _decodeJsonMap(response.body);
 
       if (response.statusCode == 200) {
         return parsedBody is Map<String, dynamic>
@@ -467,11 +545,20 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['status'] == 'success') {
-          return List<Map<String, dynamic>>.from(data['products']);
+        final data = _decodeJsonMap(response.body);
+        if (data != null && data['status'] == 'success') {
+          final products = data['products'];
+          if (products is List) {
+            return products
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList();
+          }
         }
       }
+      print(
+        'Get products unexpected response: ${response.statusCode} ${response.body}',
+      );
       return [];
     } catch (e) {
       print('Get products error: $e');
@@ -509,15 +596,16 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 201) {
-        return jsonDecode(response.body);
+        return _decodeJsonMap(response.body) ??
+            {'status': 'success', 'message': 'Produk berhasil ditambahkan'};
       } else if (response.statusCode == 409) {
-        final result = jsonDecode(response.body);
-        return result;
+        return _decodeJsonMap(response.body) ??
+            {'status': 'error', 'message': 'Produk sudah ada'};
       } else if (response.statusCode == 400) {
-        final result = jsonDecode(response.body);
+        final result = _decodeJsonMap(response.body);
         return {
           'status': 'error',
-          'message': result['message'] ?? 'Bad request',
+          'message': result?['message'] ?? 'Bad request',
         };
       } else {
         print('Create product error - Status: ${response.statusCode}');
@@ -541,8 +629,8 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['status'] == 'success') {
+        final data = _decodeJsonMap(response.body);
+        if (data != null && data['status'] == 'success') {
           return data['product'];
         }
       }
@@ -581,10 +669,7 @@ class MLService {
           )
           .timeout(Duration(seconds: timeoutSeconds));
 
-      final body =
-          response.body.isNotEmpty
-              ? jsonDecode(response.body) as Map<String, dynamic>
-              : <String, dynamic>{};
+      final body = _decodeJsonMap(response.body) ?? <String, dynamic>{};
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return body;
@@ -626,8 +711,8 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 201) {
-        final result = jsonDecode(response.body);
-        return result;
+        final result = _decodeJsonMap(response.body);
+        return result ?? {'status': 'success'};
       } else {
         return {
           'status': 'error',
@@ -668,8 +753,8 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 201) {
-        final result = jsonDecode(response.body);
-        return result['status'] == 'success';
+        final result = _decodeJsonMap(response.body);
+        return result?['status'] == 'success';
       }
       return false;
     } catch (e) {
@@ -695,9 +780,15 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['status'] == 'success') {
-          return List<Map<String, dynamic>>.from(data['transactions']);
+        final data = _decodeJsonMap(response.body);
+        if (data != null && data['status'] == 'success') {
+          final transactions = data['transactions'];
+          if (transactions is List) {
+            return transactions
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList();
+          }
         }
       }
       return [];
@@ -744,8 +835,8 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 201) {
-        final result = jsonDecode(response.body);
-        return result['status'] == 'success';
+        final result = _decodeJsonMap(response.body);
+        return result?['status'] == 'success';
       }
       return false;
     } catch (e) {
@@ -766,9 +857,15 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['status'] == 'success') {
-          return List<Map<String, dynamic>>.from(data['recipes']);
+        final data = _decodeJsonMap(response.body);
+        if (data != null && data['status'] == 'success') {
+          final recipes = data['recipes'];
+          if (recipes is List) {
+            return recipes
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList();
+          }
         }
       }
       return [];
@@ -786,8 +883,8 @@ class MLService {
           .timeout(Duration(seconds: timeoutSeconds));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['status'] == 'success') {
+        final data = _decodeJsonMap(response.body);
+        if (data != null && data['status'] == 'success') {
           return data['recipe'];
         }
       }

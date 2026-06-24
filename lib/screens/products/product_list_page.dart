@@ -511,7 +511,10 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${_controller.formatStock(product.stock)} ${product.unit}',
+                          _controller.formatStockDisplay(
+                            product.stock,
+                            product.unit,
+                          ),
                           style: AppTextStyles.labelLarge.copyWith(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w700,
@@ -696,18 +699,24 @@ class _ProductListScreenState extends State<ProductListScreen> with RouteAware {
                     icon: Icons.inventory_2_outlined,
                     label: 'Stok',
                     value:
-                        '${_controller.formatStock(product.stock)} ${product.unit}',
+                        _controller.formatStockDisplay(
+                          product.stock,
+                          product.unit,
+                        ),
                   ),
                   _buildDetailTile(
                     icon: Icons.low_priority_outlined,
                     label: 'Minimum',
                     value:
-                        '${_controller.formatStock(product.minStock)} ${_controller.minimumStockUnit(product)}',
+                        _controller.formatStockDisplay(
+                          product.minStock,
+                          product.unit,
+                        ),
                   ),
                   _buildDetailTile(
                     icon: Icons.straighten_outlined,
                     label: 'Satuan',
-                    value: product.unit,
+                    value: _controller.displayUnit(product),
                   ),
                   _buildDetailTile(
                     icon: Icons.speed_outlined,

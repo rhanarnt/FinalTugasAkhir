@@ -1,5 +1,5 @@
 import re
-
+import os
 import mysql.connector
 
 from cleanup_dummy_data import db_config
@@ -155,7 +155,9 @@ def cleanup_to_backend_recipe_data(cursor):
 
 
 def main():
-    with open('prediksi_stok_db.sql', 'r', encoding='utf-8') as sql_file:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    sql_path = os.path.join(script_dir, 'prediksi_stok_db.sql')
+    with open(sql_path, 'r', encoding='utf-8') as sql_file:
         sql_text = sql_file.read()
 
     connection = mysql.connector.connect(**db_config())

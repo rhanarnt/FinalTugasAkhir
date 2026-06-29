@@ -56,6 +56,13 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
+# Initialize global variables for ML model components to satisfy IDE static analysis
+model = None
+encoders = {}
+feature_columns = []
+metadata = {}
+
+
 # ============================================================================
 # DATABASE CONFIGURATION
 # ============================================================================
@@ -852,13 +859,14 @@ def normalize_prediction_payload(data: dict) -> dict:
 # LOAD MODELS AT STARTUP
 # ============================================================================
 try:
-    model = joblib.load('model_prediksi.pkl')
-    encoders = joblib.load('encoders.pkl')
-    feature_columns = joblib.load('feature_columns.pkl')
-    metadata = joblib.load('model_metadata.pkl')
+    _model_dir = os.path.dirname(__file__)
+    model = joblib.load(os.path.join(_model_dir, 'model_prediksi.pkl'))
+    encoders = joblib.load(os.path.join(_model_dir, 'encoders.pkl'))
+    feature_columns = joblib.load(os.path.join(_model_dir, 'feature_columns.pkl'))
+    metadata = joblib.load(os.path.join(_model_dir, 'model_metadata.pkl'))
     logger.info("Models loaded successfully")
     logger.info(f"Model Type: {metadata['model_type']}")
-    logger.info(f"R² Score: {metadata['r2_score']:.4f}")
+    logger.info(f"R2 Score: {metadata['r2_score']:.4f}")
 except Exception as e:
     logger.error(f"Failed to load models: {e}")
     raise
@@ -2809,7 +2817,7 @@ if __name__ == '__main__':
     logger.info("Starting Prediksi Stok API")
     logger.info("=" * 80)
     logger.info(f"Model: {metadata['model_type']}")
-    logger.info(f"Accuracy (R²): {metadata['r2_score']:.4f}")
+    logger.info(f"Accuracy (R2): {metadata['r2_score']:.4f}")
     logger.info(f"Features: {len(feature_columns)}")
     logger.info("Endpoints: /health, /metadata, /info, /prediksi, /batch-prediksi, /products, /transactions, /predictions, /recipes")
     logger.info("Access API at: http://localhost:5000")

@@ -6,7 +6,10 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from sklearn.preprocessing import LabelEncoder
 import joblib
 import warnings
+import os
 warnings.filterwarnings('ignore')
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # ============================================================================
 # LOAD AND PREPARE DATA
@@ -15,7 +18,7 @@ print("=" * 80)
 print("MODEL TESTING - LINEAR REGRESSION vs RANDOM FOREST")
 print("=" * 80)
 
-file_path = 'dataset_prediksi_permintaan_bahan_2021_2025_update_tanggal.xlsx'
+file_path = os.path.join(script_dir, 'dataset_prediksi_permintaan_bahan_2021_2025_update_tanggal.xlsx')
 
 try:
     df = pd.read_excel(file_path)
@@ -261,7 +264,7 @@ print("[INFO] Linear Regression hanya dipakai sebagai pembanding evaluasi.")
 # ============================================================================
 # SAVE RESULTS
 # ============================================================================
-results_file = open('model_testing_results.txt', 'w', encoding='utf-8')
+results_file = open(os.path.join(script_dir, 'model_testing_results.txt'), 'w', encoding='utf-8')
 results_file.write("=" * 80 + "\n")
 results_file.write("HASIL TESTING MODEL - PREDIKSI PERMINTAAN STOK BAHAN KUE\n")
 results_file.write("=" * 80 + "\n\n")
@@ -290,7 +293,7 @@ results_file.write(f"  RMSE: {test_rmse_rf:.2f}\n\n")
 
 results_file.close()
 
-print("\n[OK] Hasil disimpan ke: model_testing_results.txt")
+print(f"\n[OK] Hasil disimpan ke: {os.path.join(script_dir, 'model_testing_results.txt')}")
 
 # ============================================================================
 # SAVE BEST MODEL
@@ -299,15 +302,15 @@ print("\n" + "=" * 80)
 print("MENYIMPAN MODEL TERBAIK")
 print("=" * 80)
 
-joblib.dump(rf_model, 'model_prediksi.pkl')
+joblib.dump(rf_model, os.path.join(script_dir, 'model_prediksi.pkl'))
 print("\n[OK] Model Random Forest disimpan: model_prediksi.pkl")
 
 # Save encoders
-joblib.dump(encoders, 'encoders.pkl')
+joblib.dump(encoders, os.path.join(script_dir, 'encoders.pkl'))
 print("[OK] Encoders disimpan: encoders.pkl")
 
 # Save feature columns
-joblib.dump(feature_cols, 'feature_columns.pkl')
+joblib.dump(feature_cols, os.path.join(script_dir, 'feature_columns.pkl'))
 print("[OK] Feature columns disimpan: feature_columns.pkl")
 
 # Save metadata
@@ -324,7 +327,7 @@ metadata = {
     'total_samples': len(df)
 }
 
-joblib.dump(metadata, 'model_metadata.pkl')
+joblib.dump(metadata, os.path.join(script_dir, 'model_metadata.pkl'))
 print("[OK] Metadata disimpan: model_metadata.pkl")
 
 print("\nFile yang telah disimpan:")

@@ -212,4 +212,12 @@
 <text x="1180" y="3210" text-anchor="middle" class="small">Ya</text>
 <path d="M965,3152.5 L830,3152.5 L970,3162.5" class="line" marker-end="url(#arrow)"/>
 <text x="870" y="3135" text-anchor="middle" class="small">Tidak</text>
+<!-- Loopback: login_retry to input_login -->
+<path d="M90,1312.5 L50,1312.5 L50,775 L306,775" class="line" marker-end="url(#arrow)"/>
+<!-- Loopback: account_retry to input_email -->
+<path d="M2090,1207.5 L2130,1207.5 L2130,775 L1720,775" class="line" marker-end="url(#arrow)"/>
+<!-- Loopback: otp_retry to input_otp -->
+<path d="M2090,1992.5 L2130,1992.5 L2130,1560 L1715,1560" class="line" marker-end="url(#arrow)"/>
+<!-- Connection: reset_ok to login_page -->
+<path d="M1570,2245 L1570,2270 L1100,2270 L1100,555" class="line" marker-end="url(#arrow)"/>
 </svg>

@@ -5,9 +5,9 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
+import os
 
-
-OUTPUT = "ml_model/Panduan_Pengujian_Linear_Regression_dan_Random_Forest.docx"
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
 NAVY = "17365D"
 BLUE = "2E74B5"
@@ -301,8 +301,8 @@ def add_cover(doc):
         doc,
         ["Informasi", "Keterangan"],
         [
-            ["Jumlah data", "6.742 transaksi"],
-            ["Pembagian data", "80% training dan 20% testing"],
+            ["Jumlah data", "6.742 transaksi (6.741 data bersih)"],
+            ["Pembagian data", "80% training dan 20% testing secara kronologis"],
             ["Target", "jumlah_permintaan_bahan"],
             ["Model yang dibandingkan", "Linear Regression dan Random Forest Regressor"],
             ["Tujuan dokumen", "Bahan belajar, pembahasan laporan, dan persiapan sidang"],
@@ -329,8 +329,9 @@ def build_document():
     add_body(
         doc,
         "Pengujian model dilakukan untuk mengetahui kemampuan Linear Regression dan Random Forest "
-        "dalam memprediksi jumlah permintaan bahan kue. Dataset berisi 6.742 transaksi dan dibagi "
-        "menjadi 5.393 data training serta 1.349 data testing menggunakan rasio 80:20."
+        "dalam memprediksi jumlah permintaan bahan kue. Dataset berisi 6.742 transaksi, dengan 1 baris "
+        "memiliki missing value pada produk_encoded sehingga menghasilkan 6.741 data bersih. Data tersebut "
+        "dibagi secara kronologis menjadi 5.392 data training serta 1.349 data testing menggunakan rasio 80:20."
     )
     add_table(
         doc,
@@ -409,11 +410,11 @@ def build_document():
         doc,
         ["Komponen", "Nilai"],
         [
-            ["Total data", "6.742 transaksi"],
-            ["Training set", "5.393 transaksi atau 80%"],
-            ["Testing set", "1.349 transaksi atau 20%"],
+            ["Total data", "6.742 transaksi (6.741 data bersih)"],
+            ["Training set", "5.392 transaksi atau 80% (periode 2021-01-01 s/d 2024-12-28)"],
+            ["Testing set", "1.349 transaksi atau 20% (periode 2024-12-28 s/d 2025-12-31)"],
             ["Target", "jumlah_permintaan_bahan"],
-            ["Jumlah fitur model tersimpan", "10 fitur"],
+            ["Jumlah fitur model tersimpan", "9 fitur"],
         ],
         widths=[2.3, 4.0],
     )
@@ -422,37 +423,40 @@ def build_document():
         doc,
         ["No.", "Fitur", "Makna"],
         [
-            ["1", "produk_encoded", "Kode angka produk"],
+            ["1", "produk_encoded", "Kode angka produk (diubah menggunakan LabelEncoder)"],
             ["2", "tahun", "Tahun transaksi"],
             ["3", "bulan", "Bulan transaksi"],
             ["4", "hari", "Tanggal dalam bulan"],
-            ["5", "hari_dalam_minggu", "Kode hari dalam minggu"],
+            ["5", "hari_dalam_minggu", "Kode hari dalam minggu transaksi"],
             ["6", "harga_satuan_update", "Harga satuan bahan"],
-            ["7", "total_harga_update", "Total harga transaksi"],
-            ["8", "hari_minggu", "Duplikasi informasi hari dalam minggu"],
-            ["9", "nama_produk_encoded", "Nama produk yang telah diubah menjadi angka"],
-            ["10", "kategori_produk_encoded", "Kategori produk yang telah diubah menjadi angka"],
+            ["7", "hari_minggu", "Kode hari minggu (dayofweek)"],
+            ["8", "nama_produk_encoded", "Nama produk yang telah diubah menggunakan LabelEncoder"],
+            ["9", "kategori_produk_encoded", "Kategori produk yang telah diubah menggunakan LabelEncoder"],
         ],
         widths=[0.6, 2.3, 3.4],
     )
     add_heading(doc, "2.3 Pembagian Training dan Testing", 2)
     add_code(
         doc,
-        "X_train, X_test, y_train, y_test = train_test_split(\n"
-        "    X, y, test_size=0.2, random_state=42\n"
-        ")"
+        "# Urutkan data secara kronologis\n"
+        "df = df.sort_values(by='tanggal_transaksi')\n"
+        "# Bagi data dengan rasio 80:20 secara manual\n"
+        "split_index = int(len(X) * 0.8)\n"
+        "X_train, X_test = X.iloc[:split_index], X.iloc[split_index:]\n"
+        "y_train, y_test = y.iloc[:split_index], y.iloc[split_index:]"
     )
     add_body(
         doc,
-        "Parameter test_size=0.2 berarti 20% data digunakan untuk testing. Parameter random_state=42 "
-        "membuat pembagian acak selalu sama ketika program dijalankan ulang, sehingga hasil pengujian "
-        "dapat direproduksi."
+        "Pembagian data dilakukan secara kronologis berdasarkan urutan tanggal transaksi. Parameter split_index "
+        "diambil dari 80% panjang dataset bersih (6.741 data), yaitu int(6741 * 0.8) = 5.392 data training, "
+        "dan sisa 1.349 data digunakan sebagai testing. Metode ini memastikan bahwa model diuji untuk memprediksi "
+        "permintaan di masa depan, bukan sekadar memprediksi data acak di masa lalu."
     )
     add_callout(
         doc,
-        "Catatan untuk Data Berdasarkan Waktu",
-        "Karena tujuan sistem adalah memprediksi masa depan, pembagian data secara kronologis lebih kuat "
-        "daripada pembagian acak. Data lama sebaiknya digunakan sebagai training dan data terbaru sebagai testing.",
+        "Pemberitahuan Metodologi",
+        "Pengujian model menggunakan pembagian kronologis (chronological split) sangat penting untuk data deret "
+        "waktu (time series) guna menghindari data leakage temporal, di mana model tidak sengaja mempelajari data masa depan.",
         fill=LIGHT_GOLD,
         title_color=GOLD,
     )
@@ -590,60 +594,60 @@ def build_document():
     add_heading(doc, "6. Perhitungan Hasil Testing Proyek", 1)
     add_body(
         doc,
-        "Pada testing set terdapat 1.349 data. Rata-rata target testing adalah sekitar 4,9622 unit, "
-        "sedangkan total variasi aktual atau SST adalah 5.133,0719."
+        "Pada testing set terdapat 1.349 data. Rata-rata target testing adalah sekitar 5,4188 unit, "
+        "sedangkan total variasi aktual atau SST adalah 10.964,3617."
     )
     add_heading(doc, "6.1 Linear Regression", 2)
     add_table(
         doc,
         ["Komponen", "Nilai"],
         [
-            ["Jumlah absolute error atau SAE", "848,4592"],
-            ["Jumlah squared error atau SSE", "1.122,3551"],
+            ["Jumlah absolute error atau SAE", "3.357,4719"],
+            ["Jumlah squared error atau SSE", "11.007,5413"],
             ["Jumlah data testing", "1.349"],
-            ["Total variasi aktual atau SST", "5.133,0719"],
+            ["Total variasi aktual atau SST", "10.964,3617"],
         ],
         widths=[3.4, 2.9],
     )
-    add_formula(doc, "MAE = 848,4592 / 1.349 = 0,6290 ≈ 0,63")
-    add_formula(doc, "RMSE = √(1.122,3551 / 1.349) = 0,9121 ≈ 0,91")
-    add_formula(doc, "R² = 1 - (1.122,3551 / 5.133,0719) = 0,7813")
+    add_formula(doc, "MAE = 3.357,4719 / 1.349 = 2,4889 ≈ 2,49")
+    add_formula(doc, "RMSE = √(11.007,5413 / 1.349) = 2,8565 ≈ 2,86")
+    add_formula(doc, "R² = 1 - (11.007,5413 / 10.964,3617) = -0,0039")
     add_body(
         doc,
-        "Interpretasinya, Linear Regression menjelaskan sekitar 78,13% variasi target pada testing set "
-        "dan rata-rata prediksinya meleset sekitar 0,63 unit."
+        "Interpretasinya, Linear Regression tidak mampu menjelaskan variasi target pada testing set secara optimal "
+        "(R² bernilai negatif sebesar -0,0039 atau -0,39%) dan rata-rata prediksinya meleset sekitar 2,49 unit."
     )
     add_heading(doc, "6.2 Random Forest", 2)
     add_table(
         doc,
         ["Komponen", "Nilai"],
         [
-            ["Jumlah absolute error atau SAE", "39,86"],
-            ["Jumlah squared error atau SSE", "18,7142"],
+            ["Jumlah absolute error atau SAE", "3.494,5478"],
+            ["Jumlah squared error atau SSE", "12.431,3712"],
             ["Jumlah data testing", "1.349"],
-            ["Total variasi aktual atau SST", "5.133,0719"],
+            ["Total variasi aktual atau SST", "10.964,3617"],
         ],
         widths=[3.4, 2.9],
     )
-    add_formula(doc, "MAE = 39,86 / 1.349 = 0,0295 ≈ 0,03")
-    add_formula(doc, "RMSE = √(18,7142 / 1.349) = 0,1178 ≈ 0,12")
-    add_formula(doc, "R² = 1 - (18,7142 / 5.133,0719) = 0,9964")
+    add_formula(doc, "MAE = 3.494,5478 / 1.349 = 2,5905 ≈ 2,59")
+    add_formula(doc, "RMSE = √(12.431,3712 / 1.349) = 3,0357 ≈ 3,04")
+    add_formula(doc, "R² = 1 - (12.431,3712 / 10.964,3617) = -0,1338")
     add_body(
         doc,
-        "Interpretasinya, Random Forest menjelaskan sekitar 99,64% variasi target pada testing set "
-        "dan rata-rata prediksinya meleset sekitar 0,03 unit. Angka ini harus dibaca bersama analisis "
-        "data leakage pada bagian berikutnya."
+        "Interpretasinya, Random Forest tidak mampu menjelaskan variasi target pada testing set secara optimal "
+        "(R² bernilai negatif sebesar -0,1338 atau -13,38%) dan rata-rata prediksinya meleset sekitar 2,59 unit "
+        "setelah fitur total_harga_update yang menimbulkan data leakage dihapus."
     )
     add_heading(doc, "6.3 Contoh Hasil Prediksi Individual", 2)
     add_table(
         doc,
         ["Aktual", "Prediksi Linear Regression", "Prediksi Random Forest", "Error Absolut RF"],
         [
-            ["4", "3,5472", "4,01", "0,01"],
-            ["3", "2,5369", "3,00", "0,00"],
-            ["4", "4,4879", "4,00", "0,00"],
-            ["2", "0,7336", "2,00", "0,00"],
-            ["7", "7,2195", "7,00", "0,00"],
+            ["7", "5,4795", "3,71", "3,29"],
+            ["5", "5,5121", "4,99", "0,01"],
+            ["10", "5,5587", "5,04", "4,96"],
+            ["1", "5,4686", "5,67", "4,67"],
+            ["2", "5,4883", "5,64", "3,64"],
         ],
         widths=[0.9, 2.0, 2.0, 1.4],
         font_size=9,
@@ -654,38 +658,39 @@ def build_document():
         doc,
         ["Aspek", "Linear Regression", "Random Forest"],
         [
-            ["R² testing", "0,7813", "0,9964"],
-            ["MAE testing", "0,63 unit", "0,03 unit"],
-            ["RMSE testing", "0,91 unit", "0,12 unit"],
-            ["Kemampuan pola non-linear", "Terbatas", "Baik"],
+            ["R² testing", "-0,0039", "-0,1338"],
+            ["MAE testing", "2,49 unit", "2,59 unit"],
+            ["RMSE testing", "2,86 unit", "3,04 unit"],
+            ["Kemampuan pola non-linear", "Terbatas", "Baik (pada data training)"],
             ["Kemudahan interpretasi", "Sangat mudah", "Lebih kompleks"],
-            ["Risiko pada hasil proyek", "Terpengaruh leakage", "Sangat terpengaruh leakage"],
+            ["Ketergantungan data leakage", "Bebas leakage (total harga dihapus)", "Bebas leakage (total harga dihapus)"],
         ],
         widths=[2.2, 2.05, 2.05],
     )
     add_heading(doc, "7.1 Perbandingan MAE", 2)
-    add_formula(doc, "Penurunan MAE = [(0,6290 - 0,0295) / 0,6290] x 100% = 95,3%")
+    add_formula(doc, "Peningkatan MAE = [(2,5905 - 2,4889) / 2,4889] x 100% = 4,08%")
     add_body(
         doc,
-        "Pernyataan yang tepat adalah Random Forest mengurangi MAE sekitar 95,3% dibandingkan Linear "
-        "Regression pada test set saat ini. Pernyataan tersebut tidak sama dengan mengatakan model "
-        "95,3% lebih akurat."
+        "Pernyataan yang tepat adalah model Random Forest menghasilkan kesalahan rata-rata yang sedikit "
+        "lebih tinggi (+4,08%) dibandingkan Linear Regression pada test set aktual tanpa leakage."
     )
     add_heading(doc, "7.2 Indikasi Overfitting", 2)
     add_table(
         doc,
         ["Model", "R² Training", "R² Testing", "Selisih"],
         [
-            ["Linear Regression", "0,7902", "0,7813", "0,0089"],
-            ["Random Forest", "0,9995", "0,9964", "0,0031"],
+            ["Linear Regression", "0,0013", "-0,0039", "0,0052"],
+            ["Random Forest", "0,6913", "-0,1338", "0,8251"],
         ],
         widths=[2.0, 1.4, 1.4, 1.4],
     )
     add_body(
         doc,
-        "Selisih training dan testing terlihat kecil sehingga secara angka awal model tampak stabil. "
-        "Namun, kestabilan ini tidak membatalkan masalah data leakage karena informasi target tersedia "
-        "pada kedua kelompok data melalui total harga."
+        "Selisih training dan testing pada Linear Regression terlihat sangat kecil, namun kedua nilainya mendekati nol, "
+        "menunjukkan underfitting. Sedangkan pada Random Forest, terdapat selisih R² yang sangat besar (0,8251) "
+        "antara training (0,6913) dan testing (-0,1338). Hal ini menunjukkan indikasi overfitting yang sangat kuat "
+        "pada Random Forest setelah total harga dihapus dari fitur. Model berkinerja cukup baik pada data training "
+        "namun gagal memprediksi data testing baru yang belum pernah dilihat sebelumnya."
     )
 
     add_heading(doc, "8. Analisis Data Leakage", 1)
@@ -742,10 +747,8 @@ def build_document():
         doc,
         ["Skenario", "Model", "R²", "MAE", "RMSE"],
         [
-            ["Random split tanpa total harga", "Linear Regression", "-0,0045", "1,53", "1,96"],
-            ["Random split tanpa total harga", "Random Forest", "-0,1124", "1,64", "2,06"],
-            ["Chronological split tanpa total harga", "Linear Regression", "-0,0025", "1,57", "1,99"],
-            ["Chronological split tanpa total harga", "Random Forest", "-0,0831", "1,65", "2,06"],
+            ["Chronological split tanpa total harga (backend Railway)", "Linear Regression", "-0,0039", "2,49", "2,86"],
+            ["Chronological split tanpa total harga (backend Railway)", "Random Forest", "-0,1338", "2,59", "3,04"],
         ],
         widths=[2.3, 1.6, 0.8, 0.8, 0.8],
         font_size=8.8,
@@ -790,9 +793,9 @@ def build_document():
     add_heading(doc, "10.3 Konsistensi Aplikasi Flutter", 2)
     add_body(
         doc,
-        "Python menggunakan kode hari 0 sampai 6, sedangkan DateTime.weekday pada Flutter menggunakan "
-        "1 sampai 7. Nilai harus disamakan sebelum dikirim ke model. Selain itu, pemetaan encoded produk "
-        "dan kategori pada Flutter harus sama persis dengan LabelEncoder saat training."
+        "Python menggunakan kode hari 0 sampai 6 melalui dt.dayofweek (Senin=0), sedangkan DateTime.weekday pada Flutter menggunakan "
+        "1 sampai 7 (Senin=1). Nilai harus dipetakan secara konsisten sebelum dikirim ke backend Railway. Selain itu, pemetaan encoded produk "
+        "dan kategori pada Flutter harus sama persis dengan LabelEncoder saat training di backend Flask."
     )
 
     add_heading(doc, "11. Contoh Penjelasan untuk Laporan", 1)
@@ -800,31 +803,31 @@ def build_document():
     add_callout(
         doc,
         "Contoh Penulisan",
-        "Pengujian model dilakukan menggunakan metode hold-out dengan membagi dataset menjadi 80% data "
-        "training dan 20% data testing. Dari total 6.742 data transaksi, sebanyak 5.393 data digunakan "
-        "untuk melatih model dan 1.349 data digunakan untuk menguji performa model. Pembagian data "
-        "menggunakan random_state sebesar 42 agar hasil pembagian dapat direproduksi. Evaluasi dilakukan "
-        "menggunakan koefisien determinasi R², Mean Absolute Error, dan Root Mean Squared Error.",
+        "Pengujian model dilakukan menggunakan metode chronological split dengan membagi dataset bersih "
+        "menjadi 80% data training dan 20% data testing. Dari total 6.742 data transaksi (6.741 data bersih setelah pembersihan 1 missing value), sebanyak 5.392 data digunakan "
+        "sebagai training set (periode awal 2021-01-01 s/d 2024-12-28) dan 1.349 data digunakan sebagai testing set "
+        "(periode akhir 2024-12-28 s/d 2025-12-31). Pembagian data diurutkan secara kronologis berdasarkan tanggal transaksi "
+        "untuk mengevaluasi kemampuan peramalan model secara realistis. Evaluasi dilakukan menggunakan "
+        "koefisien determinasi R², Mean Absolute Error, dan Root Mean Squared Error.",
     )
     add_heading(doc, "11.2 Paragraf Hasil Perbandingan", 2)
     add_callout(
         doc,
         "Contoh Penulisan",
-        "Berdasarkan pengujian awal, Linear Regression menghasilkan R² sebesar 0,7813, MAE sebesar 0,63, "
-        "dan RMSE sebesar 0,91. Random Forest menghasilkan R² sebesar 0,9964, MAE sebesar 0,03, dan RMSE "
-        "sebesar 0,12. Secara numerik, Random Forest memberikan hasil prediksi yang lebih dekat terhadap "
-        "nilai aktual pada testing set dibandingkan Linear Regression.",
+        "Berdasarkan hasil pengujian model tanpa data leakage, Linear Regression menghasilkan R² sebesar -0,0039, "
+        "MAE sebesar 2,49, dan RMSE sebesar 2,86. Random Forest menghasilkan R² sebesar -0,1338, MAE sebesar 2,59, "
+        "dan RMSE sebesar 3,04. Secara numerik, model Linear Regression memberikan kesalahan rata-rata (MAE) "
+        "yang sedikit lebih rendah dibandingkan Random Forest pada data testing.",
     )
     add_heading(doc, "11.3 Paragraf Keterbatasan", 2)
     add_callout(
         doc,
         "Contoh Penulisan",
-        "Evaluasi lanjutan menunjukkan bahwa nilai Random Forest yang sangat tinggi dipengaruhi oleh "
-        "penggunaan fitur total_harga_update. Fitur tersebut dihitung dari harga_satuan_update dikalikan "
-        "jumlah_permintaan_bahan yang menjadi target model. Kondisi ini menimbulkan data leakage karena "
-        "fitur mengandung informasi langsung mengenai target. Oleh karena itu, hasil R² sebesar 0,9964 "
-        "harus dipahami sebagai performa pada konfigurasi dataset awal dan belum sepenuhnya menggambarkan "
-        "kemampuan prediksi permintaan masa depan.",
+        "Evaluasi model ini dilakukan setelah mengeluarkan fitur total_harga_update untuk menghindari data leakage. "
+        "Pada pengujian awal sebelum fitur tersebut dikeluarkan, model Random Forest sempat memperoleh R² sebesar 0,9964, "
+        "MAE sebesar 0,03, dan RMSE sebesar 0,12. Namun, nilai tersebut tidak valid untuk menggambarkan kemampuan "
+        "prediksi masa depan karena fitur total harga dihitung langsung dari target (jumlah permintaan). Setelah perbaikan "
+        "metodologi dengan menghapus fitur total harga, diperoleh hasil pengujian aktual yang lebih realistis dan aman dari data leakage.",
         fill=LIGHT_GOLD,
         title_color=GOLD,
     )
@@ -844,10 +847,11 @@ def build_document():
     add_heading(doc, "12.1 Bagaimana Proses Testing Dilakukan?", 2)
     add_body(
         doc,
-        "Jawaban: Proses testing dilakukan dengan membagi 6.742 data menjadi 80% data training dan 20% "
-        "data testing. Model mempelajari pola dari 5.393 data training, kemudian menghasilkan prediksi "
-        "untuk 1.349 data testing yang tidak digunakan saat pelatihan. Hasil prediksi dibandingkan dengan "
-        "nilai aktual menggunakan R², MAE, dan RMSE."
+        "Jawaban: Proses testing dilakukan dengan membagi 6.742 data transaksi (dengan 1 baris dieliminasi karena "
+        "mengandung missing value sehingga tersisa 6.741 data bersih) menjadi 80% data training (5.392 data, periode "
+        "awal) dan 20% data testing (1.349 data, periode akhir) secara kronologis berdasarkan urutan tanggal. Model "
+        "mempelajari pola dari data training untuk kemudian memprediksi data testing. Hasil prediksi "
+        "dievaluasi menggunakan R², MAE, dan RMSE."
     )
     add_heading(doc, "12.2 Mengapa Menggunakan Tiga Metrik?", 2)
     add_body(
@@ -856,26 +860,28 @@ def build_document():
         "menunjukkan rata-rata kesalahan dalam satuan permintaan sehingga mudah dipahami. RMSE memberikan "
         "penalti lebih besar untuk kesalahan yang besar. Ketiganya memberikan penilaian yang lebih lengkap."
     )
-    add_heading(doc, "12.3 Mengapa Random Forest Lebih Baik?", 2)
+    add_heading(doc, "12.3 Mengapa Hasil Evaluasi R² Bernilai Negatif?", 2)
     add_body(
         doc,
-        "Jawaban: Pada konfigurasi testing awal, Random Forest lebih baik karena mampu menangkap hubungan "
-        "non-linear dan menggabungkan prediksi dari 100 Decision Tree. Namun, performa yang sangat tinggi "
-        "juga disebabkan total harga yang memiliki hubungan langsung dengan target."
+        "Jawaban: Nilai R² negatif pada data testing (Linear Regression: -0,0039, Random Forest: -0,1338) menunjukkan "
+        "bahwa model kesulitan untuk memprediksi data masa depan berdasarkan urutan waktu (chronological split) setelah "
+        "fitur data leakage (total_harga_update) dihapus. Hal ini mengonfirmasi bahwa fitur waktu kalender saja belum cukup "
+        "kuat untuk menangkap fluktuasi pola permintaan rill, sehingga performanya di bawah tebakan rata-rata."
     )
-    add_heading(doc, "12.4 Apakah R² 0,9964 Berarti Akurasi 99,64%?", 2)
+    add_heading(doc, "12.4 Bagaimana Hasil Model yang Di-deploy di Railway?", 2)
     add_body(
         doc,
-        "Jawaban: Tidak sepenuhnya. R² sebesar 0,9964 berarti model menjelaskan sekitar 99,64% variasi "
-        "target pada testing set. R² bukan akurasi klasifikasi. Selain itu, nilai tersebut dipengaruhi "
-        "data leakage sehingga belum mewakili kemampuan prediksi masa depan secara valid."
+        "Jawaban: Model backend Flask yang di-deploy di Railway adalah model Random Forest yang dilatih tanpa menggunakan fitur total_harga_update "
+        "untuk memastikan kebebasan dari data leakage. Model ini diakses oleh aplikasi Flutter sebagai frontend melalui API. Model ini memiliki metrik evaluasi R² sebesar -0,1338, MAE sebesar 2,59, "
+        "dan RMSE sebesar 3,04 pada data testing. Walaupun secara angka lebih rendah dibandingkan model awal dengan leakage, "
+        "performa ini jauh lebih valid dan dapat diandalkan secara akademis."
     )
-    add_heading(doc, "12.5 Apakah Model Mengalami Overfitting?", 2)
+    add_heading(doc, "12.5 Apakah Model Mengalami Overfitting Setelah Leakage Dihapus?", 2)
     add_body(
         doc,
-        "Jawaban: Selisih R² training dan testing kecil, sehingga secara angka awal tidak menunjukkan "
-        "overfitting yang besar. Akan tetapi, terdapat masalah yang lebih penting, yaitu data leakage. "
-        "Leakage membuat training dan testing sama-sama mudah diprediksi karena keduanya mengandung informasi target."
+        "Jawaban: Ya. Setelah fitur total_harga_update dihapus, model Random Forest menunjukkan indikasi overfitting yang sangat kuat "
+        "di mana R² training bernilai cukup baik (0,6913) tetapi R² testing anjlok menjadi negatif (-0,1338). Ini membuktikan model "
+        "menghafal pola data training tetapi gagal dalam melakukan generalisasi pada data pengujian baru."
     )
     add_heading(doc, "12.6 Apa Perbaikan yang Harus Dilakukan?", 2)
     add_body(
@@ -916,8 +922,22 @@ def build_document():
         title_color=GREEN,
     )
 
-    doc.save(OUTPUT)
-    print(OUTPUT)
+    path1 = os.path.join(script_dir, 'Panduan_Pengujian_Linear_Regression_dan_Random_Forest.docx')
+    path2 = os.path.join(os.path.dirname(script_dir), 'Panduan_Pengujian_Linear_Regression_dan_Random_Forest.docx')
+    
+    try:
+        doc.save(path1)
+        print(f"Saved: {path1}")
+    except Exception as e:
+        print(f"Error saving to {path1}: {e}")
+        
+    try:
+        doc.save(path2)
+        print(f"Saved: {path2}")
+    except Exception as e:
+        backup_path = os.path.join(os.path.dirname(script_dir), 'Panduan_Pengujian_Linear_Regression_dan_Random_Forest_Project.docx')
+        doc.save(backup_path)
+        print(f"Warning: File {path2} is locked. Saved as backup: {backup_path}")
 
 
 if __name__ == "__main__":

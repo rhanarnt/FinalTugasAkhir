@@ -682,6 +682,9 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                 label: 'Permintaan',
                                                 value:
                                                     '${_controller.predictedDemand ?? 0}',
+                                                infoTitle: 'Permintaan (Prediksi)',
+                                                infoText:
+                                                    'Perkiraan jumlah produk yang akan dibeli pelanggan berdasarkan riwayat penjualan toko.',
                                               ),
                                             ),
                                             const SizedBox(width: 10),
@@ -690,6 +693,9 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                 label: 'Produksi',
                                                 value:
                                                     '${_controller.productionQuantity} pcs',
+                                                infoTitle: 'Jumlah Produksi',
+                                                infoText:
+                                                    'Banyaknya produk yang akan Anda buat. Jumlah ini bisa disesuaikan secara manual di bagian atas.',
                                               ),
                                             ),
                                           ],
@@ -707,6 +713,15 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                         : _controller
                                                             .predictionR2!
                                                             .toStringAsFixed(4),
+                                                infoTitle: 'Akurasi Model (R²)',
+                                                infoText:
+                                                    'Mengukur seberapa pintar model membaca pola penjualan Anda.\n\n'
+                                                    '• Semakin mendekati 1, tebakan model semakin tepat.\n'
+                                                    '• Nilai rendah/negatif berarti pola penjualan sangat fluktuatif.\n\n'
+                                                    'Standar Acuan Prediksi Baik:\n'
+                                                    '• Sangat Baik: 0.70 s/d 1.00\n'
+                                                    '• Cukup Baik: 0.50 s/d 0.69\n'
+                                                    '• Kurang Baik: Di bawah 0.50',
                                               ),
                                             ),
                                             const SizedBox(width: 10),
@@ -720,9 +735,62 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                                         : _controller
                                                             .predictionMae!
                                                             .toStringAsFixed(2),
+                                                infoTitle: 'Potensi Meleset (MAE)',
+                                                infoText:
+                                                    'Rata-rata selisih antara hasil prediksi dengan kenyataan penjualan.\n\n'
+                                                    '• Menunjukkan rata-rata seberapa jauh tebakan model bisa meleset.\n'
+                                                    '• Semakin kecil nilai MAE, tebakan model semakin akurat.\n\n'
+                                                    'Standar Acuan Prediksi Baik:\n'
+                                                    '• Semakin dekat ke 0 semakin akurat.\n'
+                                                    '• Baik/Akurat jika MAE ≤ 2.0 unit (atau di bawah 20% dari rata-rata penjualan).',
                                               ),
                                             ),
                                           ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.65),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: const Color(0xFFA89080).withOpacity(0.2),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.info_outline_rounded,
+                                                    size: 14,
+                                                    color: Color(0xFFA89080),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    'Rangkuman Prediksi & Acuan Dosen:',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: const Color(0xFFA89080).withOpacity(0.9),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                '• Akurasi Model (R²): ${_controller.predictionR2 == null ? '-' : _controller.predictionR2!.toStringAsFixed(4)} (${_controller.predictionR2 == null ? 'Belum dihitung' : _controller.predictionR2! >= 0.7 ? 'Sangat Baik, target ≥ 0.50' : _controller.predictionR2! >= 0.5 ? 'Cukup Baik, target ≥ 0.50' : 'Kurang Baik, target ≥ 0.50'})\n'
+                                                '• Potensi Meleset (MAE): ${_controller.predictionMae == null ? '-' : '±${_controller.predictionMae!.toStringAsFixed(1)} unit'} (${_controller.predictionMae == null ? 'Belum dihitung' : _controller.predictionMae! <= 2.0 ? 'Sangat Akurat, target ≤ 2.0' : 'Kurang Akurat, target ≤ 2.0'})',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF4B5563),
+                                                  height: 1.4,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -1448,10 +1516,17 @@ class _PredictionScreenState extends State<PredictionScreen> {
 }
 
 class _PredictionMetric extends StatelessWidget {
-  const _PredictionMetric({required this.label, required this.value});
+  const _PredictionMetric({
+    required this.label,
+    required this.value,
+    this.infoTitle,
+    this.infoText,
+  });
 
   final String label;
   final String value;
+  final String? infoTitle;
+  final String? infoText;
 
   @override
   Widget build(BuildContext context) {
@@ -1465,9 +1540,117 @@ class _PredictionMetric extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+              ),
+              if (infoText != null)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    showDialog<void>(
+                      context: context,
+                      builder: (context) {
+                        return Dialog(
+                          backgroundColor: Colors.transparent,
+                          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.12),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFA89080).withOpacity(0.15),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.info_outline_rounded,
+                                        color: Color(0xFFA89080),
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        infoTitle ?? label,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF1F2937),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  infoText!,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF4B5563),
+                                    height: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFA89080),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                    ),
+                                    child: const Text(
+                                      'Mengerti',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 6, bottom: 4, top: 4),
+                    child: Icon(
+                      Icons.help_outline_rounded,
+                      size: 13,
+                      color: Color(0xFFA89080),
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
